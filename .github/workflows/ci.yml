@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [ '1.21', '1.22' ]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ matrix.go-version }}
+    
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+    
+    - name: Download dependencies
+      run: go mod download
+    
+    - name: Run tests
+      run: go test -v ./...
+    
+    - name: Run go vet
+      run: go vet ./...
+    
+    - name: Check formatting
+      run: |
+        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+          echo "Code is not formatted:"
+          gofmt -s -l .
+          exit 1
+        fi
+    
+    - name: Build
+      run: go build -v ./cmd
+
+  build-releases:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+    
+    - name: Build for multiple platforms
+      run: |
+        GOOS=linux GOARCH=amd64 go build -o bin/pullpoet-linux-amd64 ./cmd
+        GOOS=darwin GOARCH=amd64 go build -o bin/pullpoet-darwin-amd64 ./cmd
+        GOOS=darwin GOARCH=arm64 go build -o bin/pullpoet-darwin-arm64 ./cmd
+        GOOS=windows GOARCH=amd64 go build -o bin/pullpoet-windows-amd64.exe ./cmd
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: pullpoet-binaries
+        path: bin/ 
