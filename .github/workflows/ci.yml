@@ -47,7 +47,9 @@ jobs:
         fi
     
     - name: Build
-      run: go build -v ./cmd
+      run: |
+        mkdir -p bin
+        go build -v -o ./bin/pullpoet ./cmd
 
   build-releases:
     runs-on: ubuntu-latest
@@ -64,6 +66,7 @@ jobs:
     
     - name: Build for multiple platforms
       run: |
+        mkdir -p bin
         GOOS=linux GOARCH=amd64 go build -o bin/pullpoet-linux-amd64 ./cmd
         GOOS=darwin GOARCH=amd64 go build -o bin/pullpoet-darwin-amd64 ./cmd
         GOOS=darwin GOARCH=arm64 go build -o bin/pullpoet-darwin-arm64 ./cmd
