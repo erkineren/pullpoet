@@ -53,3 +53,5 @@ Thumbs.db
 # Coverage reports
 coverage.txt
 coverage.html
+
+pr-description*.md

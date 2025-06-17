@@ -15,6 +15,9 @@ type Config struct {
 	APIKey      string
 	OllamaURL   string
 	Model       string
+	// ClickUp integration fields
+	ClickUpPAT    string
+	ClickUpTaskID string
 }
 
 // Validate checks if the configuration is valid
@@ -40,16 +43,21 @@ func Validate(cfg *Config) error {
 	}
 
 	provider := strings.ToLower(cfg.Provider)
-	if provider != "openai" && provider != "ollama" {
-		return fmt.Errorf("provider must be either 'openai' or 'ollama'")
+	if provider != "openai" && provider != "ollama" && provider != "gemini" {
+		return fmt.Errorf("provider must be 'openai', 'ollama', or 'gemini'")
 	}
 
-	if provider == "openai" && cfg.APIKey == "" {
-		return fmt.Errorf("API key is required when using OpenAI provider")
+	if (provider == "openai" || provider == "gemini") && cfg.APIKey == "" {
+		return fmt.Errorf("API key is required when using OpenAI or Gemini provider")
 	}
 
 	if provider == "ollama" && cfg.OllamaURL == "" {
 		return fmt.Errorf("Ollama URL is required when using Ollama provider")
+	}
+
+	// ClickUp validation: both PAT and task ID must be provided together
+	if (cfg.ClickUpPAT != "" && cfg.ClickUpTaskID == "") || (cfg.ClickUpPAT == "" && cfg.ClickUpTaskID != "") {
+		return fmt.Errorf("both ClickUp PAT and task ID must be provided together")
 	}
 
 	return nil
