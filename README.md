@@ -1,9 +1,9 @@
 # PullPoet
 
-[![CI](https://github.com/yourusername/pullpoet/workflows/CI/badge.svg)](https://github.com/yourusername/pullpoet/actions)
-[![Go Report Card](https://goreportcard.com/badge/github.com/yourusername/pullpoet)](https://goreportcard.com/report/github.com/yourusername/pullpoet)
+[![CI](https://github.com/erkineren/pullpoet/workflows/CI/badge.svg)](https://github.com/erkineren/pullpoet/actions)
+[![Go Report Card](https://goreportcard.com/badge/github.com/erkineren/pullpoet)](https://goreportcard.com/report/github.com/erkineren/pullpoet)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Go Reference](https://pkg.go.dev/badge/github.com/yourusername/pullpoet.svg)](https://pkg.go.dev/github.com/yourusername/pullpoet)
+[![Go Reference](https://pkg.go.dev/badge/github.com/erkineren/pullpoet.svg)](https://pkg.go.dev/github.com/erkineren/pullpoet)
 
 A Go CLI tool that generates AI-powered pull request titles and descriptions by analyzing git diffs.
 
@@ -25,7 +25,7 @@ A Go CLI tool that generates AI-powered pull request titles and descriptions by 
 ### From Source
 
 ```bash
-git clone https://github.com/yourusername/pullpoet.git
+git clone https://github.com/erkineren/pullpoet.git
 cd pullpoet
 go build -o pullpoet cmd/main.go
 ```
