@@ -9,6 +9,7 @@ A Go CLI tool that generates AI-powered pull request titles and descriptions by 
 
 ## Features
 
+- **🍺 Homebrew Support**: Easy installation via Homebrew on macOS and Linux
 - **🤖 Multi-Provider Support**: Works with OpenAI, Ollama, and Google Gemini
 - **📦 Git Integration**: Automatically clones repositories and generates diffs between branches
 - **🧠 Smart Analysis**: Combines git diffs with optional manual descriptions for context
@@ -21,6 +22,17 @@ A Go CLI tool that generates AI-powered pull request titles and descriptions by 
 - **🔧 Flexible Options**: Configurable AI providers, models, and output formats
 
 ## Installation
+
+### Homebrew (Recommended) 🍺
+
+```bash
+# Install directly from tap
+brew install erkineren/pullpoet/pullpoet
+
+# Or add the tap first and then install
+brew tap erkineren/pullpoet
+brew install pullpoet
+```
 
 ### From Source
 
