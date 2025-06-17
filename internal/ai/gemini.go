@@ -105,3 +105,8 @@ Please provide:
 	result_formatted := fmt.Sprintf("TITLE: %s\n\nBODY:\n%s", response.Title, response.Body)
 	return result_formatted, nil
 }
+
+// GetProviderInfo returns the provider name and model
+func (c *GeminiClient) GetProviderInfo() (provider, model string) {
+	return "Google Gemini", c.model
+}

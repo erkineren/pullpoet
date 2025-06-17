@@ -122,3 +122,8 @@ func (c *OpenAIClient) GenerateDescription(prompt string) (string, error) {
 	result := fmt.Sprintf("TITLE: %s\n\nBODY:\n%s", response.Title, response.Body)
 	return result, nil
 }
+
+// GetProviderInfo returns the provider name and model
+func (c *OpenAIClient) GetProviderInfo() (provider, model string) {
+	return "OpenAI", c.model
+}

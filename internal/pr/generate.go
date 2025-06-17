@@ -3,6 +3,8 @@ package pr
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"pullpoet/internal/ai"
 	"pullpoet/internal/git"
 	"strings"
@@ -19,25 +21,6 @@ type Result struct {
 	Body  string
 }
 
-// PromptTemplate contains reusable prompt components
-type PromptTemplate struct {
-	SystemRole       string
-	BaseInstructions string
-	FormatTemplate   string
-	Guidelines       []string
-	Restrictions     []string
-}
-
-// EmojiCategories defines emoji sets for different sections
-type EmojiCategories struct {
-	Technical   []string
-	WebDev      []string
-	Database    []string
-	Testing     []string
-	Performance []string
-	BugFix      []string
-}
-
 // NewGenerator creates a new PR generator
 func NewGenerator(aiClient ai.Client) *Generator {
 	return &Generator{
@@ -47,30 +30,14 @@ func NewGenerator(aiClient ai.Client) *Generator {
 
 // Generate creates a PR description based on the git diff and optional description
 func (g *Generator) Generate(gitResult *git.GitResult, issueContext, repoURL string) (*Result, error) {
-	fmt.Println("   📝 Building AI prompt...")
+	fmt.Println("   📝 Building unified AI prompt...")
 
-	// Check if we're using Ollama client (for structured outputs)
-	if isOllamaClient(g.aiClient) {
-		prompt := g.buildOllamaPrompt(gitResult, issueContext, repoURL)
-		fmt.Printf("   ✅ Ollama structured prompt built (%d characters)\n", len(prompt))
-
-		response, err := g.aiClient.GenerateDescription(prompt)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get AI response: %w", err)
-		}
-
-		fmt.Println("   🔍 Parsing structured Ollama response...")
-		result, err := g.parseStructuredResponse(response)
-		if err != nil {
-			return nil, err
-		}
-		fmt.Println("   ✅ Structured response parsed successfully")
-		return result, nil
+	prompt, err := g.buildUnifiedPrompt(gitResult, issueContext, repoURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build prompt: %w", err)
 	}
 
-	// Default behavior for other clients (OpenAI)
-	prompt := g.buildPrompt(gitResult, issueContext, repoURL)
-	fmt.Printf("   ✅ Prompt built (%d characters)\n", len(prompt))
+	fmt.Printf("   ✅ Unified prompt built (%d characters)\n", len(prompt))
 
 	response, err := g.aiClient.GenerateDescription(prompt)
 	if err != nil {
@@ -84,135 +51,91 @@ func (g *Generator) Generate(gitResult *git.GitResult, issueContext, repoURL str
 	}
 	fmt.Println("   ✅ Response parsed successfully")
 
+	// Add pullpoet signature to the end of the PR body
+	result.Body = g.addPullpoetSignature(result.Body)
+
 	return result, nil
 }
 
-// isOllamaClient checks if the AI client is an Ollama client
-func isOllamaClient(client ai.Client) bool {
-	// Use type assertion to check if it's an Ollama client
-	// We can check by looking at the type name or implement a marker interface
-	switch client.(type) {
-	case *ai.OllamaClient:
-		return true
-	default:
-		return false
-	}
-}
-
-// getPromptTemplate returns the appropriate template based on client type
-func (g *Generator) getPromptTemplate(isOllama bool) *PromptTemplate {
-	template := &PromptTemplate{
-		SystemRole:       "You are an expert software engineer who creates professional, visually appealing pull request descriptions.",
-		BaseInstructions: "Analyze the git changes and create a well-structured PR title and description.",
-		Guidelines: []string{
-			"Use emojis for better readability",
-			"Focus on what changed and why it was necessary",
-			"Keep the tone professional but engaging",
-			"Include specific file paths where possible",
-			"Use **bold** for important components/files",
-			"Use bullet points and checkboxes for better readability",
-		},
-		Restrictions: []string{
-			"NEVER mention fake testing coverage or suggest workflow processes",
-			"DO NOT include: Merge checklists, next steps, documentation updates, CI/CD processes",
-			"FOCUS ONLY on actual code changes",
-			"Do NOT use placeholder URLs like 'your-repo' - use actual repository information",
-		},
+// loadPromptTemplate loads the unified prompt template from the .prompt file
+func (g *Generator) loadPromptTemplate() (string, error) {
+	// Get the current working directory
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed to get current directory: %w", err)
 	}
 
-	if isOllama {
-		template.FormatTemplate = g.getOllamaFormatTemplate()
-	} else {
-		template.FormatTemplate = g.getOpenAIFormatTemplate()
+	// Look for .prompt file in the current directory or walk up to find it
+	promptPath := filepath.Join(cwd, ".prompt")
+
+	// If not found in current directory, try to find it in parent directories
+	for {
+		if _, err := os.Stat(promptPath); err == nil {
+			break
+		}
+
+		parentDir := filepath.Dir(cwd)
+		if parentDir == cwd {
+			// Reached root directory
+			return "", fmt.Errorf(".prompt file not found")
+		}
+
+		cwd = parentDir
+		promptPath = filepath.Join(cwd, ".prompt")
 	}
 
-	return template
+	content, err := os.ReadFile(promptPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read .prompt file: %w", err)
+	}
+
+	return string(content), nil
 }
 
-// getOllamaFormatTemplate returns the format template for Ollama
-func (g *Generator) getOllamaFormatTemplate() string {
-	return `Create a professional PR with:
-- Title: Concise with emoji (max 80 chars)
-- Body: Structured markdown with problem statement, solution, technical changes, and manual testing notes`
-}
+// buildUnifiedPrompt constructs the prompt using the unified template
+func (g *Generator) buildUnifiedPrompt(gitResult *git.GitResult, issueContext, repoURL string) (string, error) {
+	// Load the base prompt template
+	baseTemplate, err := g.loadPromptTemplate()
+	if err != nil {
+		return "", err
+	}
 
-// getOpenAIFormatTemplate returns the detailed format template for OpenAI
-func (g *Generator) getOpenAIFormatTemplate() string {
-	return `**Create a JSON response with the following structure:**
+	var promptBuilder strings.Builder
 
-` + "```json" + `
-{
-  "title": "🚀 Concise PR title with emoji (max 80 chars)",
-  "body": "Professional markdown description (see format below)"
-}
-` + "```" + `
+	// Add the base template
+	promptBuilder.WriteString(baseTemplate)
+	promptBuilder.WriteString("\n\n")
 
-**PR Description Format Requirements:**
-1. **Start with an appropriate emoji** for the title
-2. **Use this markdown structure:**
+	// Add context section
+	contextSection := g.buildContextSection(gitResult, issueContext)
+	promptBuilder.WriteString(contextSection)
 
-` + "```markdown" + `
-# 🚀 [Title with Emoji]
+	// Add git diff section
+	diffSection := g.buildDiffSection(gitResult)
+	promptBuilder.WriteString(diffSection)
 
-## 📋 Problem Statement / Overview
-[Brief description of what was addressed]
+	// Add repository information if available
+	if repoURL != "" {
+		repoInfo := extractRepoInfo(repoURL)
+		if repoInfo != "" {
+			promptBuilder.WriteString(fmt.Sprintf("**Repository**: %s\n", repoInfo))
+			promptBuilder.WriteString(fmt.Sprintf("**Default Branch**: %s\n\n", gitResult.DefaultBranch))
+		}
+	}
 
-## 🎯 Solution Overview
-[High-level description of the approach]
+	// Add final instruction
+	promptBuilder.WriteString("**Analyze the above information and create a professional PR description following the JSON format specified above.**")
 
-## 🔧 Technical Changes
-
-### 🔨 **[Category 1 with Emoji]**
-- **[Component/File]**: [Description of change]
-- **[Component/File]**: [Description of change]
-
-### 🛠️ **[Category 2 with Emoji]**
-- **[Component/File]**: [Description of change]
-
-### 📱 **[Category 3 with Emoji]** (if applicable)
-- **[Component/File]**: [Description of change]
-
-## ✅ Key Features / Acceptance Criteria
-
-- [x] **[Feature/Requirement]**: [Description]
-- [x] **[Feature/Requirement]**: [Description]
-
-## 🧪 Testing Notes
-
-- **🔍 Code Review**: [Areas that need attention during review]
-- **🌐 Deployment Notes**: [Important considerations for deployment]
-- **👤 Usage Notes**: [How to use/test the new functionality]
-
-## 📋 Files Changed
-- ` + "`path/to/file1.ext`" + `
-- ` + "`path/to/file2.ext`" + `
-` + "```"
-}
-
-// getEmojiGuidelines returns emoji usage guidelines
-func (g *Generator) getEmojiGuidelines() string {
-	return `**HEAVILY use emojis throughout the description**, especially in subsections:
-  - 🔧 🔨 🛠️ for technical changes and tools
-  - 📱 💻 🌐 for frontend, backend, web-related
-  - 🗃️ 📊 💾 for database and data-related
-  - 🔍 🧪 👤 for testing categories
-  - ⚡ 🚀 ✨ for performance and new features
-  - 🐛 🔒 📋 for bugs, security, documentation
-
-Title emoji examples: 🐛 for bug fix, 🚀 for feature, ♻️ for refactoring, 🔒 for security, ⚡ for performance`
+	return promptBuilder.String(), nil
 }
 
 // buildContextSection creates the context section with issue and commit info
-func (g *Generator) buildContextSection(gitResult *git.GitResult, issueContext string, isOllama bool) string {
+func (g *Generator) buildContextSection(gitResult *git.GitResult, issueContext string) string {
 	var contextBuilder strings.Builder
 
 	// Add issue context if provided
 	if issueContext != "" {
-		if isOllama {
-			contextBuilder.WriteString("Original Issue/Task Description (from ClickUp/Jira/etc.):\n")
-		} else {
-			contextBuilder.WriteString("**Original Issue/Task (from ClickUp/Jira/etc.):**\n")
-		}
+		contextBuilder.WriteString("## 📋 Issue/Task Context\n\n")
 		contextBuilder.WriteString("```\n")
 		contextBuilder.WriteString(issueContext)
 		contextBuilder.WriteString("\n```\n\n")
@@ -220,20 +143,11 @@ func (g *Generator) buildContextSection(gitResult *git.GitResult, issueContext s
 
 	// Add commit information if available
 	if len(gitResult.Commits) > 0 {
-		if isOllama {
-			contextBuilder.WriteString("Commit History:\n")
-		} else {
-			contextBuilder.WriteString("**Commit History:**\n")
-		}
+		contextBuilder.WriteString("## 📝 Commit History\n\n")
 
 		for _, commit := range gitResult.Commits {
-			if isOllama {
-				contextBuilder.WriteString(fmt.Sprintf("- %s: %s (by %s on %s)\n",
-					commit.ShortHash, commit.Message, commit.Author, commit.Date.Format("2006-01-02")))
-			} else {
-				contextBuilder.WriteString(fmt.Sprintf("- **%s**: %s\n", commit.ShortHash, commit.Message))
-				contextBuilder.WriteString(fmt.Sprintf("  *By %s on %s*\n", commit.Author, commit.Date.Format("2006-01-02 15:04")))
-			}
+			contextBuilder.WriteString(fmt.Sprintf("- **%s**: %s\n", commit.ShortHash, commit.Message))
+			contextBuilder.WriteString(fmt.Sprintf("  *By %s on %s*\n", commit.Author, commit.Date.Format("2006-01-02 15:04")))
 		}
 		contextBuilder.WriteString("\n")
 	}
@@ -242,139 +156,15 @@ func (g *Generator) buildContextSection(gitResult *git.GitResult, issueContext s
 }
 
 // buildDiffSection creates the git diff section
-func (g *Generator) buildDiffSection(gitResult *git.GitResult, isOllama bool) string {
+func (g *Generator) buildDiffSection(gitResult *git.GitResult) string {
 	var diffBuilder strings.Builder
 
-	if isOllama {
-		diffBuilder.WriteString("Git diff:\n")
-	} else {
-		diffBuilder.WriteString("**Git diff to analyze:**\n")
-	}
-
+	diffBuilder.WriteString("## 🔍 Git Diff to Analyze\n\n")
 	diffBuilder.WriteString("```diff\n")
 	diffBuilder.WriteString(gitResult.Diff)
 	diffBuilder.WriteString("\n```\n\n")
 
 	return diffBuilder.String()
-}
-
-// buildFileLinksGuideline creates file linking guidelines
-func (g *Generator) buildFileLinksGuideline(repoURL, defaultBranch string) string {
-	repoInfo := extractRepoInfo(repoURL)
-	if repoInfo == "" {
-		return ""
-	}
-
-	return fmt.Sprintf("- When referencing files, use actual repository URLs like: %s/blob/%s/path/to/file.ext\n",
-		repoInfo, defaultBranch)
-}
-
-// buildOllamaPrompt creates a simplified prompt for Ollama structured outputs
-func (g *Generator) buildOllamaPrompt(gitResult *git.GitResult, issueContext, repoURL string) string {
-	var promptBuilder strings.Builder
-	template := g.getPromptTemplate(true)
-
-	// System role and basic instructions
-	promptBuilder.WriteString(template.SystemRole)
-	promptBuilder.WriteString(" ")
-	promptBuilder.WriteString(template.BaseInstructions)
-	promptBuilder.WriteString("\n\n")
-
-	// Format instructions
-	promptBuilder.WriteString("Generate a concise title with appropriate emoji and a detailed markdown description.\n\n")
-
-	// Context section
-	contextSection := g.buildContextSection(gitResult, issueContext, true)
-	promptBuilder.WriteString(contextSection)
-
-	// Diff section
-	diffSection := g.buildDiffSection(gitResult, true)
-	promptBuilder.WriteString(diffSection)
-
-	// Format template
-	promptBuilder.WriteString(template.FormatTemplate)
-	promptBuilder.WriteString("\n")
-
-	// Guidelines
-	for _, guideline := range template.Guidelines {
-		promptBuilder.WriteString("- ")
-		promptBuilder.WriteString(guideline)
-		promptBuilder.WriteString("\n")
-	}
-
-	// Restrictions
-	for _, restriction := range template.Restrictions {
-		promptBuilder.WriteString("- **")
-		promptBuilder.WriteString(restriction)
-		promptBuilder.WriteString("**\n")
-	}
-
-	// File links guideline
-	fileLinksGuideline := g.buildFileLinksGuideline(repoURL, gitResult.DefaultBranch)
-	if fileLinksGuideline != "" {
-		promptBuilder.WriteString(fileLinksGuideline)
-	}
-
-	return promptBuilder.String()
-}
-
-// buildPrompt constructs the detailed prompt for OpenAI and other clients
-func (g *Generator) buildPrompt(gitResult *git.GitResult, issueContext, repoURL string) string {
-	var promptBuilder strings.Builder
-	template := g.getPromptTemplate(false)
-
-	// System role and instructions
-	promptBuilder.WriteString(template.SystemRole)
-	promptBuilder.WriteString(" ")
-	promptBuilder.WriteString(template.BaseInstructions)
-	promptBuilder.WriteString("\n\n")
-
-	// Context section
-	contextSection := g.buildContextSection(gitResult, issueContext, false)
-	promptBuilder.WriteString(contextSection)
-
-	// Diff section
-	diffSection := g.buildDiffSection(gitResult, false)
-	promptBuilder.WriteString(diffSection)
-
-	// Format template
-	promptBuilder.WriteString(template.FormatTemplate)
-	promptBuilder.WriteString("\n\n")
-
-	// Additional guidelines section
-	promptBuilder.WriteString("**Additional Guidelines:**\n")
-
-	// Emoji guidelines
-	promptBuilder.WriteString("- ")
-	promptBuilder.WriteString(g.getEmojiGuidelines())
-	promptBuilder.WriteString("\n")
-
-	// Regular guidelines
-	for _, guideline := range template.Guidelines {
-		promptBuilder.WriteString("- ")
-		promptBuilder.WriteString(guideline)
-		promptBuilder.WriteString("\n")
-	}
-
-	// Restrictions
-	for _, restriction := range template.Restrictions {
-		promptBuilder.WriteString("- **")
-		promptBuilder.WriteString(restriction)
-		promptBuilder.WriteString("**\n")
-	}
-
-	// File links guidelines
-	fileLinksGuideline := g.buildFileLinksGuideline(repoURL, gitResult.DefaultBranch)
-	if fileLinksGuideline != "" {
-		promptBuilder.WriteString(fileLinksGuideline)
-	}
-	promptBuilder.WriteString("- Do NOT use placeholder URLs like 'your-repo', 'example-repo', or similar placeholders\n")
-	promptBuilder.WriteString("- Use the actual repository information provided above when creating file links\n\n")
-
-	// Final instruction
-	promptBuilder.WriteString("**Analyze the git diff and create a professional PR description following this exact format.**")
-
-	return promptBuilder.String()
 }
 
 // extractRepoInfo extracts repository URL information from a git repository URL
@@ -412,42 +202,24 @@ func extractRepoInfo(repoURL string) string {
 	return repoURL
 }
 
-// parseStructuredResponse parses the JSON response from Ollama structured output
-func (g *Generator) parseStructuredResponse(response string) (*Result, error) {
-	fmt.Printf("   📊 Structured response length: %d characters\n", len(response))
+// addPullpoetSignature adds a footer indicating the PR was generated by pullpoet
+func (g *Generator) addPullpoetSignature(body string) string {
+	provider, model := g.aiClient.GetProviderInfo()
+	signature := fmt.Sprintf("\n\n---\n\n*🤖 This PR description was generated by [pullpoet](https://github.com/erkineren/pullpoet) using %s (%s) - an AI-powered tool for creating professional pull request descriptions.*", provider, model)
+	return body + signature
+}
 
-	var structuredResult struct {
-		Title string `json:"title"`
-		Body  string `json:"body"`
-	}
+// parseResponse extracts the title and body from the AI response using multiple parsing strategies
+func (g *Generator) parseResponse(response string) (*Result, error) {
+	fmt.Printf("   📊 AI response length: %d characters\n", len(response))
 
 	response = strings.TrimSpace(response)
 
-	if err := json.Unmarshal([]byte(response), &structuredResult); err != nil {
-		fmt.Printf("   ⚠️  Failed to parse structured response, trying fallback: %v\n", err)
-		// Fallback to regular parsing if structured parsing fails
-		return g.parseResponse(response)
-	}
-
-	fmt.Println("   ✅ Successfully parsed structured JSON response")
-
-	return &Result{
-		Title: cleanTitle(structuredResult.Title),
-		Body:  structuredResult.Body,
-	}, nil
-}
-
-// parseResponse extracts the title and body from the AI response
-func (g *Generator) parseResponse(response string) (*Result, error) {
-	fmt.Printf("   📊 Raw AI response length: %d characters\n", len(response))
-
-	// Try to parse as JSON first (multiple attempts)
+	// Try to parse as JSON first (multiple methods)
 	var jsonResult struct {
 		Title string `json:"title"`
 		Body  string `json:"body"`
 	}
-
-	response = strings.TrimSpace(response)
 
 	// Method 1: Look for JSON block with ```json markers
 	if jsonStart := strings.Index(response, "```json"); jsonStart >= 0 {

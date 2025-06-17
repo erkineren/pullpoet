@@ -146,3 +146,8 @@ func (c *OllamaClient) GenerateDescription(prompt string) (string, error) {
 	fmt.Println("   ✅ Received structured JSON response from Ollama")
 	return ollamaResp.Message.Content, nil
 }
+
+// GetProviderInfo returns the provider name and model
+func (c *OllamaClient) GetProviderInfo() (provider, model string) {
+	return "Ollama", c.Model
+}
