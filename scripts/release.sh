@@ -79,14 +79,12 @@ check_prerequisites() {
 get_current_version() {
     local version
 
-    # Try to get version from go.mod first
-    if [[ -f "go.mod" ]]; then
-        version=$(grep "^module" go.mod | head -1 | sed 's/.*v\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/' 2>/dev/null || echo "")
-    fi
+    # Try to get version from git tags first
+    version=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "")
 
-    # If not found in go.mod, try git tags
+    # If no git tags found, default to 0.0.0
     if [[ -z "$version" ]]; then
-        version=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.0.0")
+        version="0.0.0"
     fi
 
     echo "$version"
