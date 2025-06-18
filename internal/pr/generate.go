@@ -1,18 +1,22 @@
 package pr
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"pullpoet/internal/ai"
 	"pullpoet/internal/git"
 	"strings"
 )
 
+//go:embed prompt.md
+var promptTemplate string
+
 // Generator handles PR description generation
 type Generator struct {
-	aiClient ai.Client
+	aiClient     ai.Client
+	customPrompt string
 }
 
 // Result represents the generated PR description
@@ -22,9 +26,10 @@ type Result struct {
 }
 
 // NewGenerator creates a new PR generator
-func NewGenerator(aiClient ai.Client) *Generator {
+func NewGenerator(aiClient ai.Client, customPrompt string) *Generator {
 	return &Generator{
-		aiClient: aiClient,
+		aiClient:     aiClient,
+		customPrompt: customPrompt,
 	}
 }
 
@@ -57,39 +62,19 @@ func (g *Generator) Generate(gitResult *git.GitResult, issueContext, repoURL str
 	return result, nil
 }
 
-// loadPromptTemplate loads the unified prompt template from the .prompt file
+// loadPromptTemplate loads the unified prompt template from the embedded content or custom file
 func (g *Generator) loadPromptTemplate() (string, error) {
-	// Get the current working directory
-	cwd, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("failed to get current directory: %w", err)
-	}
-
-	// Look for .prompt file in the current directory or walk up to find it
-	promptPath := filepath.Join(cwd, ".prompt")
-
-	// If not found in current directory, try to find it in parent directories
-	for {
-		if _, err := os.Stat(promptPath); err == nil {
-			break
+	// If custom prompt is provided, load it from file
+	if g.customPrompt != "" {
+		content, err := os.ReadFile(g.customPrompt)
+		if err != nil {
+			return "", fmt.Errorf("failed to read custom prompt file '%s': %w", g.customPrompt, err)
 		}
-
-		parentDir := filepath.Dir(cwd)
-		if parentDir == cwd {
-			// Reached root directory
-			return "", fmt.Errorf(".prompt file not found")
-		}
-
-		cwd = parentDir
-		promptPath = filepath.Join(cwd, ".prompt")
+		return string(content), nil
 	}
 
-	content, err := os.ReadFile(promptPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read .prompt file: %w", err)
-	}
-
-	return string(content), nil
+	// Otherwise use the embedded default prompt
+	return promptTemplate, nil
 }
 
 // buildUnifiedPrompt constructs the prompt using the unified template

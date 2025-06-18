@@ -7,14 +7,15 @@ import (
 
 // Config holds the application configuration
 type Config struct {
-	Repo        string
-	Source      string
-	Target      string
-	Description string
-	Provider    string
-	APIKey      string
-	OllamaURL   string
-	Model       string
+	Repo         string
+	Source       string
+	Target       string
+	Description  string
+	Provider     string
+	APIKey       string
+	OllamaURL    string
+	Model        string
+	SystemPrompt string
 	// ClickUp integration fields
 	ClickUpPAT    string
 	ClickUpTaskID string

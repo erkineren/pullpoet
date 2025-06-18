@@ -16,16 +16,17 @@ import (
 )
 
 var (
-	repo        string
-	source      string
-	target      string
-	description string
-	provider    string
-	apiKey      string
-	ollamaURL   string
-	model       string
-	fastMode    bool
-	outputFile  string
+	repo         string
+	source       string
+	target       string
+	description  string
+	provider     string
+	apiKey       string
+	ollamaURL    string
+	model        string
+	fastMode     bool
+	outputFile   string
+	systemPrompt string
 	// ClickUp integration variables
 	clickupPAT    string
 	clickupTaskID string
@@ -49,6 +50,7 @@ func init() {
 	rootCmd.Flags().StringVar(&model, "model", "", "AI model to use (required)")
 	rootCmd.Flags().BoolVar(&fastMode, "fast", false, "Use fast native git commands (recommended for large repositories)")
 	rootCmd.Flags().StringVar(&outputFile, "output", "", "Save PR content to file (optional)")
+	rootCmd.Flags().StringVar(&systemPrompt, "system-prompt", "", "Custom system prompt file path to override default (optional)")
 
 	// ClickUp integration flags
 	rootCmd.Flags().StringVar(&clickupPAT, "clickup-pat", "", "ClickUp Personal Access Token (optional)")
@@ -94,6 +96,7 @@ func run(cmd *cobra.Command, args []string) error {
 		APIKey:        apiKey,
 		OllamaURL:     ollamaURL,
 		Model:         model,
+		SystemPrompt:  systemPrompt,
 		ClickUpPAT:    clickupPAT,
 		ClickUpTaskID: clickupTaskID,
 	}
@@ -166,7 +169,12 @@ func run(cmd *cobra.Command, args []string) error {
 
 	// Generate PR description
 	fmt.Println("💭 Building prompt and sending to AI...")
-	generator := pr.NewGenerator(aiClient)
+	if cfg.SystemPrompt != "" {
+		fmt.Printf("📝 Using custom system prompt from: %s\n", cfg.SystemPrompt)
+	} else {
+		fmt.Println("📝 Using default embedded system prompt")
+	}
+	generator := pr.NewGenerator(aiClient, cfg.SystemPrompt)
 	result, err := generator.Generate(gitResult, finalDescription, cfg.Repo)
 	if err != nil {
 		return fmt.Errorf("failed to generate PR description: %w", err)
