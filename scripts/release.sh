@@ -95,11 +95,11 @@ prompt_for_version() {
     local current_version
     current_version=$(get_current_version)
 
-    print_status "Current version: $current_version"
+    echo "[INFO] Current version: $current_version"
     read -p "Enter new version (e.g., 2.2.0): " new_version
 
     if [[ -z "$new_version" ]]; then
-        print_error "Version cannot be empty"
+        echo "[ERROR] Version cannot be empty"
         exit 1
     fi
 
@@ -108,7 +108,7 @@ prompt_for_version() {
 
     # Validate version format (semantic versioning)
     if [[ ! $new_version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        print_error "Invalid version format. Please use semantic versioning (e.g., 2.2.0)"
+        echo "[ERROR] Invalid version format. Please use semantic versioning (e.g., 2.2.0)"
         exit 1
     fi
 
@@ -144,18 +144,18 @@ create_git_tag() {
     local version=$1
     local tag="v$version"
 
-    print_status "Creating git tag: $tag"
+    echo "[INFO] Creating git tag: $tag"
 
     # Check if tag already exists
     if git tag -l | grep -q "^$tag$"; then
-        print_warning "Tag $tag already exists"
+        echo "[WARNING] Tag $tag already exists"
         read -p "Do you want to delete and recreate it? (y/N): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             git tag -d "$tag"
             git push origin ":refs/tags/$tag" 2>/dev/null || true
         else
-            print_error "Tag already exists. Please use a different version or delete the existing tag."
+            echo "[ERROR] Tag already exists. Please use a different version or delete the existing tag."
             exit 1
         fi
     fi
@@ -164,8 +164,8 @@ create_git_tag() {
     git tag "$tag"
     git push origin "$tag"
 
-    print_success "Git tag $tag created and pushed"
-    print_status "GitHub CI will automatically create a release for this tag"
+    echo "[SUCCESS] Git tag $tag created and pushed"
+    echo "[INFO] GitHub CI will automatically create a release for this tag"
 }
 
 # Function to wait for GitHub release
