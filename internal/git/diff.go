@@ -93,23 +93,9 @@ func (c *Client) getRepositoryURL(dir string) (string, error) {
 
 	url := strings.TrimSpace(string(output))
 
-	// Convert SSH URL to HTTPS if needed
-	if strings.HasPrefix(url, "git@") {
-		url = c.convertSSHToHTTPS(url)
-	}
-
+	// Don't convert SSH URL to HTTPS - keep it as is for authentication
+	// SSH URLs work better with private repositories
 	return url, nil
-}
-
-// convertSSHToHTTPS converts SSH URL to HTTPS format
-func (c *Client) convertSSHToHTTPS(sshURL string) string {
-	// git@github.com:username/repo.git -> https://github.com/username/repo.git
-	if strings.HasPrefix(sshURL, "git@") {
-		sshURL = strings.TrimPrefix(sshURL, "git@")
-		sshURL = strings.Replace(sshURL, ":", "/", 1)
-		return "https://" + sshURL
-	}
-	return sshURL
 }
 
 // getDefaultBranch gets the default branch from remote
