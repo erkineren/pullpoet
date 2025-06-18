@@ -10,7 +10,7 @@ A Go CLI tool that generates AI-powered pull request titles and descriptions by 
 ## Features
 
 - **🍺 Homebrew Support**: Easy installation via Homebrew on macOS and Linux
-- **🤖 Multi-Provider Support**: Works with OpenAI, Ollama, and Google Gemini
+- **🤖 Multi-Provider Support**: Works with OpenAI, Ollama, Google Gemini, and OpenWebUI
 - **📦 Git Integration**: Automatically clones repositories and generates diffs between branches
 - **🧠 Smart Analysis**: Combines git diffs with optional manual descriptions for context
 - **✨ Professional Output**: Generates beautiful PR descriptions with emojis and structured markdown
@@ -96,8 +96,22 @@ pullpoet \
   --target main \
   --provider ollama \
   --model llama2 \
-  --ollama-url https://user:password@ollama.home.example.com \
+  --provider-base-url https://user:password@ollama.home.example.com \
   --description "JIRA-123: Implement OAuth2 login flow with Google and GitHub providers"
+```
+
+### Using OpenWebUI
+
+```bash
+pullpoet \
+  --repo https://github.com/example/repo.git \
+  --source feature/login \
+  --target main \
+  --provider openwebui \
+  --model llama3.1 \
+  --provider-base-url http://localhost:3000 \
+  --api-key your-openwebui-api-key \
+  --description "Implement secure user authentication with JWT tokens"
 ```
 
 ### Using Google Gemini
@@ -133,12 +147,12 @@ Automatically fetch task descriptions from ClickUp using Personal Access Token (
 ```bash
 pullpoet \
   --repo https://github.com/example/repo.git \
-  --source feature/login \
+  --source feature/new-feature \
   --target main \
-  --provider openai \
-  --model gpt-3.5-turbo \
-  --api-key your-openai-api-key \
-  --clickup-pat your-clickup-pat-token \
+  --provider gemini \
+  --model gemini-2.5-flash-preview-05-20 \
+  --api-key your-gemini-api-key \
+  --clickup-pat pk_123456789_ABCDEFGHIJKLMNOPQRSTUVWXYZ \
   --clickup-task-id 86c2dbq35
 ```
 
@@ -157,22 +171,104 @@ pullpoet \
   --output pr-description.md
 ```
 
+### Using Custom System Prompt
+
+```bash
+pullpoet \
+  --repo https://github.com/example/repo.git \
+  --source feature/login \
+  --target main \
+  --provider openai \
+  --model gpt-3.5-turbo \
+  --api-key your-openai-api-key \
+  --system-prompt /path/to/custom-prompt.md
+```
+
 ## Configuration Options
 
-| Flag                | Description                                              | Required                | Example                                                     |
-| ------------------- | -------------------------------------------------------- | ----------------------- | ----------------------------------------------------------- |
-| `--repo`            | Git repository URL                                       | Yes                     | `https://github.com/owner/repo.git`                         |
-| `--source`          | Source branch name                                       | Yes                     | `feature/new-feature`                                       |
-| `--target`          | Target branch name                                       | Yes                     | `main`                                                      |
-| `--description`     | Optional issue/task description from ClickUp, Jira, etc. | No                      | `"JIRA-123: Add user authentication feature"`               |
-| `--provider`        | AI provider (`openai`, `ollama`, or `gemini`)            | Yes                     | `openai`                                                    |
-| `--model`           | AI model to use                                          | Yes                     | `gpt-3.5-turbo`, `llama2`, `gemini-2.5-flash-preview-05-20` |
-| `--api-key`         | OpenAI or Gemini API key                                 | Yes (for OpenAI/Gemini) | `sk-...` or `AIza...`                                       |
-| `--ollama-url`      | Ollama endpoint with credentials                         | Yes (for Ollama)        | `https://user:pass@host:port`                               |
-| `--clickup-pat`     | ClickUp Personal Access Token                            | No                      | `pk_123456789_ABCDEFGHIJKLMNOPQRSTUVWXYZ`                   |
-| `--clickup-task-id` | ClickUp Task ID to fetch description from                | No                      | `86c2dbq35`                                                 |
-| `--fast`            | Use fast native git commands                             | No                      | `--fast`                                                    |
-| `--output`          | Output file path                                         | No                      | `output.md`                                                 |
+| Flag                  | Description                                                                          | Required                          | Example                                                     |
+| --------------------- | ------------------------------------------------------------------------------------ | --------------------------------- | ----------------------------------------------------------- |
+| `--repo`              | Git repository URL                                                                   | Yes                               | `https://github.com/owner/repo.git`                         |
+| `--source`            | Source branch name                                                                   | Yes                               | `feature/new-feature`                                       |
+| `--target`            | Target branch name                                                                   | Yes                               | `main`                                                      |
+| `--description`       | Optional issue/task description from ClickUp, Jira, etc.                             | No                                | `"JIRA-123: Add user authentication feature"`               |
+| `--provider`          | AI provider (`openai`, `ollama`, `gemini`, or `openwebui`)                           | Yes                               | `openai`                                                    |
+| `--model`             | AI model to use                                                                      | Yes                               | `gpt-3.5-turbo`, `llama2`, `gemini-2.5-flash-preview-05-20` |
+| `--api-key`           | OpenAI, Gemini, or OpenWebUI API key                                                 | Yes (for OpenAI/Gemini/OpenWebUI) | `sk-...` or `AIza...`                                       |
+| `--provider-base-url` | Base URL for AI provider (required for Ollama/OpenWebUI, optional for OpenAI/Gemini) | Yes (for Ollama/OpenWebUI)        | `https://user:pass@host:port` or `http://localhost:3000`    |
+| `--system-prompt`     | Custom system prompt file path to override default                                   | No                                | `/path/to/custom-prompt.md`                                 |
+| `--clickup-pat`       | ClickUp Personal Access Token                                                        | No                                | `pk_123456789_ABCDEFGHIJKLMNOPQRSTUVWXYZ`                   |
+| `--clickup-task-id`   | ClickUp Task ID to fetch description from                                            | No                                | `86c2dbq35`                                                 |
+| `--fast`              | Use fast native git commands                                                         | No                                | `--fast`                                                    |
+| `--output`            | Output file path                                                                     | No                                | `output.md`                                                 |
+
+## Custom System Prompts
+
+PullPoet allows you to customize the system prompt used to instruct the AI model. By default, it uses an embedded prompt optimized for generating professional PR descriptions.
+
+### Default Behavior
+
+When no `--system-prompt` is provided, PullPoet uses its built-in system prompt that:
+
+- Instructs the AI to generate structured PR descriptions
+- Requests JSON format with 'title' and 'body' fields
+- Provides guidelines for professional formatting
+- Ensures consistent output across different AI providers
+
+### Custom System Prompt
+
+You can override the default system prompt by providing a custom markdown file:
+
+```bash
+pullpoet \
+  --repo https://github.com/example/repo.git \
+  --source feature/login \
+  --target main \
+  --provider openai \
+  --model gpt-3.5-turbo \
+  --api-key your-openai-api-key \
+  --system-prompt /path/to/custom-prompt.md
+```
+
+### Custom Prompt File Format
+
+Your custom system prompt file should contain the instructions you want to send to the AI model. For example:
+
+```markdown
+# Custom System Prompt
+
+You are an expert software developer and technical writer. Your task is to analyze git changes and generate pull request descriptions.
+
+## Requirements:
+
+- Generate a concise title (max 80 characters)
+- Create a detailed description in markdown format
+- Focus on technical changes and business impact
+- Include testing considerations
+- Use professional language and emojis for visual appeal
+
+## Output Format:
+
+Respond with a JSON object containing:
+
+- "title": A concise PR title
+- "body": A detailed markdown description
+
+## Guidelines:
+
+- Be specific about what changed and why
+- Highlight security implications if any
+- Mention performance impacts
+- Include relevant file paths
+```
+
+### Use Cases for Custom Prompts
+
+- **Team-specific formatting**: Match your team's PR template style
+- **Domain-specific requirements**: Add industry-specific guidelines
+- **Compliance requirements**: Include security or regulatory considerations
+- **Language preferences**: Customize tone and terminology
+- **Integration requirements**: Add specific formatting for external tools
 
 ## AI Providers
 
@@ -187,9 +283,18 @@ pullpoet \
 
 - Uses a self-hosted Ollama instance
 - Supports basic authentication via URL credentials
-- Set the `--ollama-url` flag with your Ollama endpoint
+- Set the `--provider-base-url` flag with your Ollama endpoint
 - URL format: `https://username:password@your-ollama-host.com`
 - Supported models: `llama2`, `codellama`, `mistral`, `neural-chat`, etc.
+
+### OpenWebUI
+
+- Uses OpenWebUI as a unified LLM provider interface
+- Supports OpenAI-compatible API endpoints
+- Set the `--provider-base-url` flag with your OpenWebUI endpoint (default: `http://localhost:3000`)
+- Set the `--api-key` flag with your OpenWebUI API key (optional, can be obtained from Settings > Account)
+- Compatible with any model available in your OpenWebUI instance (Ollama models, OpenAI models, etc.)
+- **Benefits**: Unified interface for multiple LLM providers, local deployment, cost control
 
 ### Google Gemini
 
@@ -366,6 +471,8 @@ Implemented comprehensive authentication system with JWT tokens, secure session 
     client.go      # AI client interface
     openai.go      # OpenAI implementation
     ollama.go      # Ollama implementation
+    openwebui.go   # OpenWebUI implementation
+    gemini.go      # Google Gemini implementation
   /pr
     generate.go    # PR generation logic
 ```
@@ -408,8 +515,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Recent Updates
 
-### v2.1.0 - Gemini Integration
-
+- **🆕 OpenWebUI Support**: Added full support for OpenWebUI as a unified LLM provider interface
+- **🔧 Unified Provider URLs**: Replaced provider-specific URL flags with a single `--provider-base-url` parameter
+- **⚡ Default URLs**: Added default URLs for all providers (OpenAI: `https://api.openai.com`, Ollama: `http://localhost:11434`, OpenWebUI: `http://localhost:3000`)
+- **🎯 Flexible Configuration**: Provider base URLs are required for Ollama/OpenWebUI, optional for OpenAI/Gemini to override defaults
 - **🆕 Google Gemini Support**: Added full support for Google's Gemini AI models
 - **📋 Structured Output**: Implemented schema-validated JSON responses for enhanced reliability
 - **⚡ Performance**: Gemini 2.0 Flash provides fastest response times
@@ -423,6 +532,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Configuration file support
 - Template customization
 - Additional AI providers (Anthropic Claude, Azure OpenAI)
+- Enhanced OpenWebUI features (RAG, file uploads, knowledge collections)
 
 ## AI Analysis Features
 

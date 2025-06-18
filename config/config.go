@@ -7,18 +7,42 @@ import (
 
 // Config holds the application configuration
 type Config struct {
-	Repo         string
-	Source       string
-	Target       string
-	Description  string
-	Provider     string
-	APIKey       string
-	OllamaURL    string
-	Model        string
-	SystemPrompt string
+	Repo            string
+	Source          string
+	Target          string
+	Description     string
+	Provider        string
+	APIKey          string
+	ProviderBaseURL string
+	Model           string
+	SystemPrompt    string
 	// ClickUp integration fields
 	ClickUpPAT    string
 	ClickUpTaskID string
+}
+
+// GetProviderBaseURL returns the appropriate base URL for the provider
+func (cfg *Config) GetProviderBaseURL() string {
+	provider := strings.ToLower(cfg.Provider)
+
+	// If custom URL is provided, use it
+	if cfg.ProviderBaseURL != "" {
+		return cfg.ProviderBaseURL
+	}
+
+	// Return default URLs for each provider
+	switch provider {
+	case "openai":
+		return "https://api.openai.com"
+	case "gemini":
+		return "https://generativelanguage.googleapis.com"
+	case "ollama":
+		return "http://localhost:11434"
+	case "openwebui":
+		return "http://localhost:3000"
+	default:
+		return ""
+	}
 }
 
 // Validate checks if the configuration is valid
@@ -44,16 +68,20 @@ func Validate(cfg *Config) error {
 	}
 
 	provider := strings.ToLower(cfg.Provider)
-	if provider != "openai" && provider != "ollama" && provider != "gemini" {
-		return fmt.Errorf("provider must be 'openai', 'ollama', or 'gemini'")
+	if provider != "openai" && provider != "ollama" && provider != "gemini" && provider != "openwebui" {
+		return fmt.Errorf("provider must be 'openai', 'ollama', 'gemini', or 'openwebui'")
 	}
 
 	if (provider == "openai" || provider == "gemini") && cfg.APIKey == "" {
 		return fmt.Errorf("API key is required when using OpenAI or Gemini provider")
 	}
 
-	if provider == "ollama" && cfg.OllamaURL == "" {
-		return fmt.Errorf("Ollama URL is required when using Ollama provider")
+	// For Ollama and OpenWebUI, either custom URL or default URL must be available
+	if provider == "ollama" || provider == "openwebui" {
+		baseURL := cfg.GetProviderBaseURL()
+		if baseURL == "" {
+			return fmt.Errorf("provider base URL is required when using %s provider", provider)
+		}
 	}
 
 	// ClickUp validation: both PAT and task ID must be provided together

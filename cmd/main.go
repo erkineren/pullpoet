@@ -16,17 +16,17 @@ import (
 )
 
 var (
-	repo         string
-	source       string
-	target       string
-	description  string
-	provider     string
-	apiKey       string
-	ollamaURL    string
-	model        string
-	fastMode     bool
-	outputFile   string
-	systemPrompt string
+	repo            string
+	source          string
+	target          string
+	description     string
+	provider        string
+	apiKey          string
+	providerBaseURL string
+	model           string
+	fastMode        bool
+	outputFile      string
+	systemPrompt    string
 	// ClickUp integration variables
 	clickupPAT    string
 	clickupTaskID string
@@ -44,9 +44,9 @@ func init() {
 	rootCmd.Flags().StringVar(&source, "source", "", "Source branch name (required)")
 	rootCmd.Flags().StringVar(&target, "target", "", "Target branch name (required)")
 	rootCmd.Flags().StringVar(&description, "description", "", "Optional issue/task description from ClickUp, Jira, etc.")
-	rootCmd.Flags().StringVar(&provider, "provider", "", "AI provider: 'openai', 'ollama', or 'gemini' (required)")
+	rootCmd.Flags().StringVar(&provider, "provider", "", "AI provider: 'openai', 'ollama', 'gemini', or 'openwebui' (required)")
 	rootCmd.Flags().StringVar(&apiKey, "api-key", "", "API key for OpenAI or Gemini (required when provider is 'openai' or 'gemini')")
-	rootCmd.Flags().StringVar(&ollamaURL, "ollama-url", "", "Ollama endpoint URL with credentials (required when provider is 'ollama')")
+	rootCmd.Flags().StringVar(&providerBaseURL, "provider-base-url", "", "Base URL for AI provider (required for Ollama/OpenWebUI, optional for OpenAI/Gemini to override defaults)")
 	rootCmd.Flags().StringVar(&model, "model", "", "AI model to use (required)")
 	rootCmd.Flags().BoolVar(&fastMode, "fast", false, "Use fast native git commands (recommended for large repositories)")
 	rootCmd.Flags().StringVar(&outputFile, "output", "", "Save PR content to file (optional)")
@@ -88,17 +88,17 @@ func run(cmd *cobra.Command, args []string) error {
 	// Validate configuration
 	fmt.Println("📋 Validating configuration...")
 	cfg := &config.Config{
-		Repo:          repo,
-		Source:        source,
-		Target:        target,
-		Description:   description,
-		Provider:      provider,
-		APIKey:        apiKey,
-		OllamaURL:     ollamaURL,
-		Model:         model,
-		SystemPrompt:  systemPrompt,
-		ClickUpPAT:    clickupPAT,
-		ClickUpTaskID: clickupTaskID,
+		Repo:            repo,
+		Source:          source,
+		Target:          target,
+		Description:     description,
+		Provider:        provider,
+		APIKey:          apiKey,
+		ProviderBaseURL: providerBaseURL,
+		Model:           model,
+		SystemPrompt:    systemPrompt,
+		ClickUpPAT:      clickupPAT,
+		ClickUpTaskID:   clickupTaskID,
 	}
 
 	if err := config.Validate(cfg); err != nil {
@@ -155,13 +155,15 @@ func run(cmd *cobra.Command, args []string) error {
 	case "openai":
 		aiClient = ai.NewOpenAIClient(cfg.APIKey, cfg.Model)
 	case "ollama":
-		aiClient = ai.NewOllamaClient(cfg.OllamaURL, cfg.Model)
+		aiClient = ai.NewOllamaClient(cfg.GetProviderBaseURL(), cfg.Model)
 	case "gemini":
 		var geminiErr error
 		aiClient, geminiErr = ai.NewGeminiClient(cfg.APIKey, cfg.Model)
 		if geminiErr != nil {
 			return fmt.Errorf("failed to create Gemini client: %w", geminiErr)
 		}
+	case "openwebui":
+		aiClient = ai.NewOpenWebUIClient(cfg.GetProviderBaseURL(), cfg.APIKey, cfg.Model)
 	default:
 		return fmt.Errorf("unsupported provider: %s", cfg.Provider)
 	}
