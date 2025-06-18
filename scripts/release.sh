@@ -78,12 +78,18 @@ check_prerequisites() {
 # Function to get current version
 get_current_version() {
     local version
-    version=$(go list -m -f '{{.Version}}' .)
-    if [[ $version == v* ]]; then
-        echo "${version#v}"
-    else
-        echo "$version"
+
+    # Try to get version from go.mod first
+    if [[ -f "go.mod" ]]; then
+        version=$(grep "^module" go.mod | head -1 | sed 's/.*v\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/' 2>/dev/null || echo "")
     fi
+
+    # If not found in go.mod, try git tags
+    if [[ -z "$version" ]]; then
+        version=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.0.0")
+    fi
+
+    echo "$version"
 }
 
 # Function to prompt for version
@@ -98,6 +104,9 @@ prompt_for_version() {
         print_error "Version cannot be empty"
         exit 1
     fi
+
+    # Remove 'v' prefix if present
+    new_version="${new_version#v}"
 
     # Validate version format (semantic versioning)
     if [[ ! $new_version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
