@@ -38,11 +38,8 @@ brew install pullpoet
 ### Docker 🐳
 
 ```bash
-# Build the Docker image
-docker build -t pullpoet .
-
-# Run with Docker
-docker run --rm pullpoet \
+# Run with Docker Hub image
+docker run --rm erkineren/pullpoet \
   --repo https://github.com/example/repo.git \
   --source feature/login \
   --target main \
@@ -73,7 +70,7 @@ You can run PullPoet directly using Docker without installing it locally:
 
 ```bash
 # Basic usage with Docker
-docker run --rm pullpoet \
+docker run --rm erkineren/pullpoet \
   --repo https://github.com/example/repo.git \
   --source feature/login \
   --target main \
@@ -82,7 +79,7 @@ docker run --rm pullpoet \
   --api-key your-openai-api-key
 
 # With Gemini (recommended)
-docker run --rm pullpoet \
+docker run --rm erkineren/pullpoet \
   --repo https://github.com/example/repo.git \
   --source feature/login \
   --target main \
@@ -91,7 +88,7 @@ docker run --rm pullpoet \
   --api-key your-gemini-api-key
 
 # With ClickUp integration
-docker run --rm pullpoet \
+docker run --rm erkineren/pullpoet \
   --repo https://github.com/example/repo.git \
   --source feature/new-feature \
   --target main \
@@ -102,7 +99,7 @@ docker run --rm pullpoet \
   --clickup-task-id 86c2dbq35
 
 # Save output to a file (mount current directory)
-docker run --rm -v $(pwd):/app pullpoet \
+docker run --rm -v $(pwd):/app erkineren/pullpoet \
   --repo https://github.com/example/repo.git \
   --source feature/login \
   --target main \
