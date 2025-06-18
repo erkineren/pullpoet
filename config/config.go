@@ -55,16 +55,12 @@ func Validate(cfg *Config) error {
 		return fmt.Errorf("source branch is required")
 	}
 
-	if cfg.Target == "" {
-		return fmt.Errorf("target branch is required")
-	}
-
 	if cfg.Provider == "" {
-		return fmt.Errorf("provider is required")
+		return fmt.Errorf("provider is required (can be set via --provider flag or PULLPOET_PROVIDER environment variable)")
 	}
 
 	if cfg.Model == "" {
-		return fmt.Errorf("model is required")
+		return fmt.Errorf("model is required (can be set via --model flag or PULLPOET_MODEL environment variable)")
 	}
 
 	provider := strings.ToLower(cfg.Provider)
@@ -73,20 +69,20 @@ func Validate(cfg *Config) error {
 	}
 
 	if (provider == "openai" || provider == "gemini") && cfg.APIKey == "" {
-		return fmt.Errorf("API key is required when using OpenAI or Gemini provider")
+		return fmt.Errorf("API key is required when using OpenAI or Gemini provider (can be set via --api-key flag or PULLPOET_API_KEY environment variable)")
 	}
 
 	// For Ollama and OpenWebUI, either custom URL or default URL must be available
 	if provider == "ollama" || provider == "openwebui" {
 		baseURL := cfg.GetProviderBaseURL()
 		if baseURL == "" {
-			return fmt.Errorf("provider base URL is required when using %s provider", provider)
+			return fmt.Errorf("provider base URL is required when using %s provider (can be set via --provider-base-url flag or PULLPOET_PROVIDER_BASE_URL environment variable)", provider)
 		}
 	}
 
 	// ClickUp validation: both PAT and task ID must be provided together
 	if (cfg.ClickUpPAT != "" && cfg.ClickUpTaskID == "") || (cfg.ClickUpPAT == "" && cfg.ClickUpTaskID != "") {
-		return fmt.Errorf("both ClickUp PAT and task ID must be provided together")
+		return fmt.Errorf("both ClickUp PAT and task ID must be provided together (PAT can be set via --clickup-pat flag or PULLPOET_CLICKUP_PAT environment variable, task ID must be provided via --clickup-task-id flag)")
 	}
 
 	return nil

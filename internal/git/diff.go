@@ -3,6 +3,8 @@ package git
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -18,6 +20,136 @@ type Client struct{}
 // NewClient creates a new git client
 func NewClient() *Client {
 	return &Client{}
+}
+
+// GitInfo represents basic git repository information
+type GitInfo struct {
+	RepoURL       string
+	CurrentBranch string
+	DefaultBranch string
+	IsGitRepo     bool
+}
+
+// GetGitInfoFromCurrentDir gets git information from the current directory
+func (c *Client) GetGitInfoFromCurrentDir() (*GitInfo, error) {
+	// Check if current directory is a git repository
+	if !c.isGitRepository(".") {
+		return &GitInfo{IsGitRepo: false}, nil
+	}
+
+	// Get current branch
+	currentBranch, err := c.getCurrentBranch(".")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current branch: %w", err)
+	}
+
+	// Get repository URL
+	repoURL, err := c.getRepositoryURL(".")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repository URL: %w", err)
+	}
+
+	// Get default branch
+	defaultBranch, err := c.getDefaultBranch(".")
+	if err != nil {
+		// If we can't get default branch, use common defaults
+		defaultBranch = "main"
+	}
+
+	return &GitInfo{
+		RepoURL:       repoURL,
+		CurrentBranch: currentBranch,
+		DefaultBranch: defaultBranch,
+		IsGitRepo:     true,
+	}, nil
+}
+
+// isGitRepository checks if the given directory is a git repository
+func (c *Client) isGitRepository(dir string) bool {
+	gitDir := filepath.Join(dir, ".git")
+	info, err := os.Stat(gitDir)
+	return err == nil && info.IsDir()
+}
+
+// getCurrentBranch gets the current branch name
+func (c *Client) getCurrentBranch(dir string) (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+	cmd.Dir = dir
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get current branch: %w", err)
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
+// getRepositoryURL gets the repository URL from git remote
+func (c *Client) getRepositoryURL(dir string) (string, error) {
+	cmd := exec.Command("git", "config", "--get", "remote.origin.url")
+	cmd.Dir = dir
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get repository URL: %w", err)
+	}
+
+	url := strings.TrimSpace(string(output))
+
+	// Convert SSH URL to HTTPS if needed
+	if strings.HasPrefix(url, "git@") {
+		url = c.convertSSHToHTTPS(url)
+	}
+
+	return url, nil
+}
+
+// convertSSHToHTTPS converts SSH URL to HTTPS format
+func (c *Client) convertSSHToHTTPS(sshURL string) string {
+	// git@github.com:username/repo.git -> https://github.com/username/repo.git
+	if strings.HasPrefix(sshURL, "git@") {
+		sshURL = strings.TrimPrefix(sshURL, "git@")
+		sshURL = strings.Replace(sshURL, ":", "/", 1)
+		return "https://" + sshURL
+	}
+	return sshURL
+}
+
+// getDefaultBranch gets the default branch from remote
+func (c *Client) getDefaultBranch(dir string) (string, error) {
+	cmd := exec.Command("git", "symbolic-ref", "refs/remotes/origin/HEAD")
+	cmd.Dir = dir
+	output, err := cmd.Output()
+	if err != nil {
+		// Try alternative method
+		cmd = exec.Command("git", "ls-remote", "--symref", "origin", "HEAD")
+		cmd.Dir = dir
+		output, err = cmd.Output()
+		if err != nil {
+			return "", fmt.Errorf("failed to get default branch: %w", err)
+		}
+
+		// Parse output: ref: refs/heads/main	HEAD
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines {
+			if strings.HasPrefix(line, "ref:") {
+				parts := strings.Fields(line)
+				if len(parts) >= 2 {
+					ref := parts[1]
+					if strings.HasPrefix(ref, "refs/heads/") {
+						return strings.TrimPrefix(ref, "refs/heads/"), nil
+					}
+				}
+			}
+		}
+		return "", fmt.Errorf("could not parse default branch")
+	}
+
+	// Parse output: refs/remotes/origin/main
+	ref := strings.TrimSpace(string(output))
+	parts := strings.Split(ref, "/")
+	if len(parts) >= 4 {
+		return parts[len(parts)-1], nil
+	}
+
+	return "", fmt.Errorf("could not parse default branch from ref: %s", ref)
 }
 
 // detectDefaultBranch tries to detect the default branch (main, master, dev, etc.)
@@ -114,6 +246,9 @@ func (c *Client) GetDiff(repoURL, source, target string) (string, error) {
 		Depth: 50, // Get enough history to find common ancestor
 	})
 	if err != nil && err != git.NoErrAlreadyUpToDate {
+		if strings.Contains(err.Error(), "couldn't find remote ref") {
+			return "", fmt.Errorf("failed to fetch branches: %w\n\n💡 It looks like the branch '%s' exists only locally. Please run 'git push --set-upstream origin %s' to push your branch to the remote repository and try again.", err, sourceBranch, sourceBranch)
+		}
 		return "", fmt.Errorf("failed to fetch branches: %w", err)
 	}
 	fmt.Println("   ✅ Required branches fetched successfully")

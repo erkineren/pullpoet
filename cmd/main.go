@@ -32,6 +32,72 @@ var (
 	clickupTaskID string
 )
 
+// Environment variable names
+const (
+	EnvProvider        = "PULLPOET_PROVIDER"
+	EnvProviderBaseURL = "PULLPOET_PROVIDER_BASE_URL"
+	EnvModel           = "PULLPOET_MODEL"
+	EnvAPIKey          = "PULLPOET_API_KEY"
+	EnvClickUpPAT      = "PULLPOET_CLICKUP_PAT"
+	// EnvClickUpTaskID   = "PULLPOET_CLICKUP_TASK_ID" // Removed - task ID should be provided per PR
+)
+
+// getEnvOrDefault returns environment variable value or default if not set
+func getEnvOrDefault(envName, defaultValue string) string {
+	if value := os.Getenv(envName); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+// getProviderFromEnvOrFlag returns provider from environment or flag
+func getProviderFromEnvOrFlag() string {
+	if provider != "" {
+		return provider
+	}
+	return getEnvOrDefault(EnvProvider, "")
+}
+
+// getProviderBaseURLFromEnvOrFlag returns provider base URL from environment or flag
+func getProviderBaseURLFromEnvOrFlag() string {
+	if providerBaseURL != "" {
+		return providerBaseURL
+	}
+	return getEnvOrDefault(EnvProviderBaseURL, "")
+}
+
+// getModelFromEnvOrFlag returns model from environment or flag
+func getModelFromEnvOrFlag() string {
+	if model != "" {
+		return model
+	}
+	return getEnvOrDefault(EnvModel, "")
+}
+
+// getAPIKeyFromEnvOrFlag returns API key from environment or flag
+func getAPIKeyFromEnvOrFlag() string {
+	if apiKey != "" {
+		return apiKey
+	}
+	return getEnvOrDefault(EnvAPIKey, "")
+}
+
+// getClickUpPATFromEnvOrFlag returns ClickUp PAT from environment or flag
+func getClickUpPATFromEnvOrFlag() string {
+	if clickupPAT != "" {
+		return clickupPAT
+	}
+	return getEnvOrDefault(EnvClickUpPAT, "")
+}
+
+// getClickUpTaskIDFromEnvOrFlag returns ClickUp Task ID from environment or flag
+// func getClickUpTaskIDFromEnvOrFlag() string {
+// 	if clickupTaskID != "" {
+// 		return clickupTaskID
+// 	}
+// 	return getEnvOrDefault(EnvClickUpTaskID, "")
+// }
+
 var rootCmd = &cobra.Command{
 	Use:   "pullpoet",
 	Short: "Generate AI-powered pull request descriptions",
@@ -40,27 +106,43 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.Flags().StringVar(&repo, "repo", "", "Git repository URL (required)")
-	rootCmd.Flags().StringVar(&source, "source", "", "Source branch name (required)")
-	rootCmd.Flags().StringVar(&target, "target", "", "Target branch name (required)")
+	rootCmd.Flags().StringVar(&repo, "repo", "", "Git repository URL (auto-detected if not provided and running in git repo)")
+	rootCmd.Flags().StringVar(&source, "source", "", "Source branch name (auto-detected as current branch if not provided)")
+	rootCmd.Flags().StringVar(&target, "target", "", "Target branch name (auto-detected as default branch if not provided)")
 	rootCmd.Flags().StringVar(&description, "description", "", "Optional issue/task description from ClickUp, Jira, etc.")
-	rootCmd.Flags().StringVar(&provider, "provider", "", "AI provider: 'openai', 'ollama', 'gemini', or 'openwebui' (required)")
-	rootCmd.Flags().StringVar(&apiKey, "api-key", "", "API key for OpenAI or Gemini (required when provider is 'openai' or 'gemini')")
-	rootCmd.Flags().StringVar(&providerBaseURL, "provider-base-url", "", "Base URL for AI provider (required for Ollama/OpenWebUI, optional for OpenAI/Gemini to override defaults)")
-	rootCmd.Flags().StringVar(&model, "model", "", "AI model to use (required)")
+	rootCmd.Flags().StringVar(&provider, "provider", "", "AI provider: 'openai', 'ollama', 'gemini', or 'openwebui' (can also be set via PULLPOET_PROVIDER env var)")
+	rootCmd.Flags().StringVar(&apiKey, "api-key", "", "API key for OpenAI or Gemini (can also be set via PULLPOET_API_KEY env var)")
+	rootCmd.Flags().StringVar(&providerBaseURL, "provider-base-url", "", "Base URL for AI provider (can also be set via PULLPOET_PROVIDER_BASE_URL env var)")
+	rootCmd.Flags().StringVar(&model, "model", "", "AI model to use (can also be set via PULLPOET_MODEL env var)")
 	rootCmd.Flags().BoolVar(&fastMode, "fast", false, "Use fast native git commands (recommended for large repositories)")
 	rootCmd.Flags().StringVar(&outputFile, "output", "", "Save PR content to file (optional)")
 	rootCmd.Flags().StringVar(&systemPrompt, "system-prompt", "", "Custom system prompt file path to override default (optional)")
 
 	// ClickUp integration flags
-	rootCmd.Flags().StringVar(&clickupPAT, "clickup-pat", "", "ClickUp Personal Access Token (optional)")
-	rootCmd.Flags().StringVar(&clickupTaskID, "clickup-task-id", "", "ClickUp Task ID to fetch description from (optional)")
+	rootCmd.Flags().StringVar(&clickupPAT, "clickup-pat", "", "ClickUp Personal Access Token (can also be set via PULLPOET_CLICKUP_PAT env var)")
+	rootCmd.Flags().StringVar(&clickupTaskID, "clickup-task-id", "", "ClickUp Task ID to fetch description from (must be provided via flag)")
 
-	rootCmd.MarkFlagRequired("repo")
-	rootCmd.MarkFlagRequired("source")
-	rootCmd.MarkFlagRequired("target")
-	rootCmd.MarkFlagRequired("provider")
-	rootCmd.MarkFlagRequired("model")
+	// Flag validasyonunu kaldırdık, run fonksiyonunda manuel validasyon yapacağız
+}
+
+// autoDetectGitInfo attempts to auto-detect git repository information
+func autoDetectGitInfo() (string, string, error) {
+	gitClient := git.NewClient()
+	gitInfo, err := gitClient.GetGitInfoFromCurrentDir()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to detect git information: %w", err)
+	}
+
+	if !gitInfo.IsGitRepo {
+		return "", "", fmt.Errorf("not in a git repository - please provide --repo and --source flags")
+	}
+
+	fmt.Printf("🔍 Auto-detected git information:\n")
+	fmt.Printf("   📦 Repository: %s\n", gitInfo.RepoURL)
+	fmt.Printf("   🌿 Current branch: %s\n", gitInfo.CurrentBranch)
+	fmt.Printf("   🎯 Default branch: %s\n", gitInfo.DefaultBranch)
+
+	return gitInfo.RepoURL, gitInfo.CurrentBranch, nil
 }
 
 // savePRToFile saves the PR content to the specified file
@@ -85,6 +167,43 @@ func savePRToFile(result *pr.Result, filePath string) error {
 func run(cmd *cobra.Command, args []string) error {
 	fmt.Println("🚀 Starting PullPoet...")
 
+	// Manual validation for required fields (including environment variables)
+	finalProvider := getProviderFromEnvOrFlag()
+	finalModel := getModelFromEnvOrFlag()
+
+	if finalProvider == "" {
+		return fmt.Errorf("provider is required (can be set via --provider flag or PULLPOET_PROVIDER environment variable)")
+	}
+
+	if finalModel == "" {
+		return fmt.Errorf("model is required (can be set via --model flag or PULLPOET_MODEL environment variable)")
+	}
+
+	// Auto-detect git information if not provided
+	if repo == "" || source == "" || target == "" {
+		fmt.Println("🔍 Auto-detecting git repository information...")
+		gitClient := git.NewClient()
+		gitInfo, err := gitClient.GetGitInfoFromCurrentDir()
+		if err != nil {
+			return fmt.Errorf("auto-detection failed: %w", err)
+		}
+		if !gitInfo.IsGitRepo {
+			return fmt.Errorf("not in a git repository - please provide --repo, --source and --target flags")
+		}
+		if repo == "" {
+			repo = gitInfo.RepoURL
+			fmt.Printf("✅ Auto-detected repository: %s\n", repo)
+		}
+		if source == "" {
+			source = gitInfo.CurrentBranch
+			fmt.Printf("✅ Auto-detected source branch: %s\n", source)
+		}
+		if target == "" {
+			target = gitInfo.DefaultBranch
+			fmt.Printf("✅ Auto-detected target branch (default branch): %s\n", target)
+		}
+	}
+
 	// Validate configuration
 	fmt.Println("📋 Validating configuration...")
 	cfg := &config.Config{
@@ -92,12 +211,12 @@ func run(cmd *cobra.Command, args []string) error {
 		Source:          source,
 		Target:          target,
 		Description:     description,
-		Provider:        provider,
-		APIKey:          apiKey,
-		ProviderBaseURL: providerBaseURL,
-		Model:           model,
+		Provider:        finalProvider,
+		APIKey:          getAPIKeyFromEnvOrFlag(),
+		ProviderBaseURL: getProviderBaseURLFromEnvOrFlag(),
+		Model:           finalModel,
 		SystemPrompt:    systemPrompt,
-		ClickUpPAT:      clickupPAT,
+		ClickUpPAT:      getClickUpPATFromEnvOrFlag(),
 		ClickUpTaskID:   clickupTaskID,
 	}
 
