@@ -10,6 +10,7 @@ A Go CLI tool that generates AI-powered pull request titles and descriptions by 
 ## Features
 
 - **🍺 Homebrew Support**: Easy installation via Homebrew on macOS and Linux
+- **🐳 Docker Support**: Run as a container without local installation
 - **🤖 Multi-Provider Support**: Works with OpenAI, Ollama, Google Gemini, and OpenWebUI
 - **📦 Git Integration**: Automatically clones repositories and generates diffs between branches
 - **🧠 Smart Analysis**: Combines git diffs with optional manual descriptions for context
@@ -34,6 +35,22 @@ brew tap erkineren/pullpoet
 brew install pullpoet
 ```
 
+### Docker 🐳
+
+```bash
+# Build the Docker image
+docker build -t pullpoet .
+
+# Run with Docker
+docker run --rm pullpoet \
+  --repo https://github.com/example/repo.git \
+  --source feature/login \
+  --target main \
+  --provider openai \
+  --model gpt-3.5-turbo \
+  --api-key your-openai-api-key
+```
+
 ### From Source
 
 ```bash
@@ -49,6 +66,51 @@ go install ./cmd
 ```
 
 ## Usage
+
+### Docker Usage 🐳
+
+You can run PullPoet directly using Docker without installing it locally:
+
+```bash
+# Basic usage with Docker
+docker run --rm pullpoet \
+  --repo https://github.com/example/repo.git \
+  --source feature/login \
+  --target main \
+  --provider openai \
+  --model gpt-3.5-turbo \
+  --api-key your-openai-api-key
+
+# With Gemini (recommended)
+docker run --rm pullpoet \
+  --repo https://github.com/example/repo.git \
+  --source feature/login \
+  --target main \
+  --provider gemini \
+  --model gemini-2.5-flash-preview-05-20 \
+  --api-key your-gemini-api-key
+
+# With ClickUp integration
+docker run --rm pullpoet \
+  --repo https://github.com/example/repo.git \
+  --source feature/new-feature \
+  --target main \
+  --provider gemini \
+  --model gemini-2.5-flash-preview-05-20 \
+  --api-key your-gemini-api-key \
+  --clickup-pat pk_123456789_ABCDEFGHIJKLMNOPQRSTUVWXYZ \
+  --clickup-task-id 86c2dbq35
+
+# Save output to a file (mount current directory)
+docker run --rm -v $(pwd):/app pullpoet \
+  --repo https://github.com/example/repo.git \
+  --source feature/login \
+  --target main \
+  --provider openai \
+  --model gpt-3.5-turbo \
+  --api-key your-openai-api-key \
+  --output /app/pr-description.md
+```
 
 ### Basic Usage
 
@@ -188,7 +250,7 @@ pullpoet \
 
 | Flag                  | Description                                                                          | Required                          | Example                                                     |
 | --------------------- | ------------------------------------------------------------------------------------ | --------------------------------- | ----------------------------------------------------------- |
-| `--repo`              | Git repository URL                                                                   | Yes                               | `https://github.com/owner/repo.git`                         |
+| `--repo`              | Git repository URL                                                                   | Yes                               | `https://github.com/example/repo.git`                       |
 | `--source`            | Source branch name                                                                   | Yes                               | `feature/new-feature`                                       |
 | `--target`            | Target branch name                                                                   | Yes                               | `main`                                                      |
 | `--description`       | Optional issue/task description from ClickUp, Jira, etc.                             | No                                | `"JIRA-123: Add user authentication feature"`               |
