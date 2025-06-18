@@ -95,11 +95,11 @@ prompt_for_version() {
     local current_version
     current_version=$(get_current_version)
 
-    echo "[INFO] Current version: $current_version"
+    echo "[INFO] Current version: $current_version" >&2
     read -p "Enter new version (e.g., 2.2.0): " new_version
 
     if [[ -z "$new_version" ]]; then
-        echo "[ERROR] Version cannot be empty"
+        echo "[ERROR] Version cannot be empty" >&2
         exit 1
     fi
 
@@ -108,7 +108,7 @@ prompt_for_version() {
 
     # Validate version format (semantic versioning)
     if [[ ! $new_version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        echo "[ERROR] Invalid version format. Please use semantic versioning (e.g., 2.2.0)"
+        echo "[ERROR] Invalid version format. Please use semantic versioning (e.g., 2.2.0)" >&2
         exit 1
     fi
 
@@ -144,18 +144,18 @@ create_git_tag() {
     local version=$1
     local tag="v$version"
 
-    echo "[INFO] Creating git tag: $tag"
+    echo "[INFO] Creating git tag: $tag" >&2
 
     # Check if tag already exists
     if git tag -l | grep -q "^$tag$"; then
-        echo "[WARNING] Tag $tag already exists"
+        echo "[WARNING] Tag $tag already exists" >&2
         read -p "Do you want to delete and recreate it? (y/N): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             git tag -d "$tag"
             git push origin ":refs/tags/$tag" 2>/dev/null || true
         else
-            echo "[ERROR] Tag already exists. Please use a different version or delete the existing tag."
+            echo "[ERROR] Tag already exists. Please use a different version or delete the existing tag." >&2
             exit 1
         fi
     fi
@@ -164,8 +164,8 @@ create_git_tag() {
     git tag "$tag"
     git push origin "$tag"
 
-    echo "[SUCCESS] Git tag $tag created and pushed"
-    echo "[INFO] GitHub CI will automatically create a release for this tag"
+    echo "[SUCCESS] Git tag $tag created and pushed" >&2
+    echo "[INFO] GitHub CI will automatically create a release for this tag" >&2
 }
 
 # Function to wait for GitHub release
@@ -309,6 +309,9 @@ main() {
     # Get version
     local version
     version=$(prompt_for_version)
+
+    # Clear any extra output
+    echo
 
     # Run tests
     run_tests
