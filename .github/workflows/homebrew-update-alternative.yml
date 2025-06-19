@@ -1,0 +1,29 @@
+name: Update Homebrew Formula (Alternative)
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag name (e.g., v1.2.4)'
+        required: true
+        default: 'v1.2.4'
+
+jobs:
+  homebrew:
+    name: Bump Homebrew formula
+    runs-on: ubuntu-latest
+    steps:
+      - uses: mislav/bump-homebrew-formula-action@v3
+        with:
+          formula-name: pullpoet
+          homebrew-tap: erkineren/homebrew-pullpoet
+          base-branch: main
+          download-url: https://github.com/erkineren/pullpoet/archive/refs/tags/${{ github.event.release.tag_name || github.event.inputs.tag_name }}.tar.gz
+          commit-message: |
+            {{formulaName}} {{version}}
+
+            Created by https://github.com/mislav/bump-homebrew-formula-action
+        env:
+          COMMITTER_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }} 
