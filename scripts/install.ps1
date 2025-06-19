@@ -5,26 +5,25 @@
 #   # Install latest version
 #   Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing).Content
 #   
-#   # Update to latest version
-#   Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing).Content -Update
+#   # Update to latest version (correct parameter passing)
+#   Invoke-Expression "$((Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1' -UseBasicParsing).Content) -Update"
 #   
 #   # Install to custom directory
-#   Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing).Content -InstallDir "C:\Tools\pullpoet"
+#   Invoke-Expression "$((Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1' -UseBasicParsing).Content) -InstallDir 'C:\Tools\pullpoet'"
 #   
 #   # Uninstall
-#   Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing).Content -Uninstall
+#   Invoke-Expression "$((Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1' -UseBasicParsing).Content) -Uninstall"
 #   
 #   # Alternative: Download and run locally
 #   Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -OutFile "install.ps1"
 #   .\install.ps1 -Uninstall
 
-param(
-    [switch]$Update,
-    [switch]$Force,
-    [switch]$Uninstall,
-    [switch]$Help,
-    [string]$InstallDir
-)
+# Parse parameters first for Invoke-Expression compatibility
+$Update = $false
+$Force = $false
+$Uninstall = $false
+$Help = $false
+$InstallDir = ""
 
 # Configuration
 $RepoOwner = "erkineren"
@@ -382,47 +381,6 @@ try {
     if ($PSVersionTable.PSVersion.Major -lt 5) {
         Write-Error "PowerShell 5.0 or higher is required"
         return
-    }
-    
-    # Set default installation directory if not provided
-    if (-not $InstallDir) {
-        $script:InstallDir = $DefaultInstallDir
-    }
-    
-    # Debug: Show received arguments
-    # Write-Host "DEBUG: Received $($args.Count) arguments: $args" -ForegroundColor Magenta
-    
-    # Handle parameters passed via Invoke-Expression
-    # When script is downloaded and executed via Invoke-Expression, parameters need special handling
-    $scriptArgs = $args
-    
-    # Parse arguments manually for Invoke-Expression compatibility
-    for ($i = 0; $i -lt $scriptArgs.Count; $i++) {
-        switch ($scriptArgs[$i]) {
-            "-Update" { 
-                $script:Update = $true 
-                # Write-Host "DEBUG: Update flag set" -ForegroundColor Magenta
-            }
-            "-Force" { 
-                $script:Force = $true 
-                # Write-Host "DEBUG: Force flag set" -ForegroundColor Magenta
-            }
-            "-Uninstall" { 
-                $script:Uninstall = $true 
-                # Write-Host "DEBUG: Uninstall flag set" -ForegroundColor Magenta
-            }
-            "-Help" { 
-                $script:Help = $true 
-                # Write-Host "DEBUG: Help flag set" -ForegroundColor Magenta
-            }
-            "-InstallDir" { 
-                if ($i + 1 -lt $scriptArgs.Count) {
-                    $script:InstallDir = $scriptArgs[$i + 1]
-                    $i++ # Skip next argument as it's the value
-                    # Write-Host "DEBUG: InstallDir set to $InstallDir" -ForegroundColor Magenta
-                }
-            }
-        }
     }
     
     # Handle parameters
