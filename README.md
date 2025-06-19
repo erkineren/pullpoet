@@ -63,14 +63,17 @@ curl -sSL https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/inst
 # Install latest version
 Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing).Content
 
-# Update to latest version
-Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing).Content -Update
+# Update to latest version (use this method for parameters)
+$script = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing
+Invoke-Expression $script.Content -Update
 
 # Install to custom directory
-Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing).Content -InstallDir "C:\Tools\pullpoet"
+$script = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing
+Invoke-Expression $script.Content -InstallDir "C:\Tools\pullpoet"
 
 # Uninstall
-Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing).Content -Uninstall
+$script = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing
+Invoke-Expression $script.Content -Uninstall
 
 # Alternative: Download and run locally (recommended for parameters)
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -OutFile "install.ps1"

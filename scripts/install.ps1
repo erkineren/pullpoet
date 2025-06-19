@@ -384,22 +384,26 @@ try {
         exit 1
     }
     
+    # Set default installation directory if not provided
+    if (-not $InstallDir) {
+        $script:InstallDir = $DefaultInstallDir
+    }
+    
     # Handle parameters passed via Invoke-Expression
     # When script is downloaded and executed via Invoke-Expression, parameters need special handling
     $scriptArgs = $args
-    if ($scriptArgs.Count -gt 0) {
-        # Parse arguments manually for Invoke-Expression compatibility
-        for ($i = 0; $i -lt $scriptArgs.Count; $i++) {
-            switch ($scriptArgs[$i]) {
-                "-Update" { $Update = $true }
-                "-Force" { $Force = $true }
-                "-Uninstall" { $Uninstall = $true }
-                "-Help" { $Help = $true }
-                "-InstallDir" { 
-                    if ($i + 1 -lt $scriptArgs.Count) {
-                        $InstallDir = $scriptArgs[$i + 1]
-                        $i++ # Skip next argument as it's the value
-                    }
+    
+    # Parse arguments manually for Invoke-Expression compatibility
+    for ($i = 0; $i -lt $scriptArgs.Count; $i++) {
+        switch ($scriptArgs[$i]) {
+            "-Update" { $Update = $true }
+            "-Force" { $Force = $true }
+            "-Uninstall" { $Uninstall = $true }
+            "-Help" { $Help = $true }
+            "-InstallDir" { 
+                if ($i + 1 -lt $scriptArgs.Count) {
+                    $script:InstallDir = $scriptArgs[$i + 1]
+                    $i++ # Skip next argument as it's the value
                 }
             }
         }
