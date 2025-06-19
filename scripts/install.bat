@@ -28,8 +28,16 @@ echo [INFO] PowerShell version: %PS_VERSION%
 echo [INFO] Downloading and running installation script...
 echo.
 
-REM Download and run the PowerShell script
-powershell -Command "& {Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1' -UseBasicParsing | Invoke-Expression} %*"
+REM Build PowerShell command with parameters
+set "PS_CMD=powershell -Command "& {Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1' -UseBasicParsing | Invoke-Expression}"
+
+REM Add parameters if provided
+if not "%1"=="" (
+    set "PS_CMD=%PS_CMD% %*"
+)
+
+REM Execute the PowerShell command
+%PS_CMD%
 
 if errorlevel 1 (
     echo.
@@ -39,6 +47,16 @@ if errorlevel 1 (
 ) else (
     echo.
     echo [SUCCESS] Installation completed successfully!
+    echo.
+    
+    REM Refresh current session PATH for Command Prompt
+    for /f "tokens=2*" %%a in ('reg query "HKCU\Environment" /v PATH 2^>nul') do set USER_PATH=%%b
+    if defined USER_PATH (
+        echo [INFO] Refreshing current session PATH...
+        set "PATH=%USER_PATH%;%PATH%"
+        echo [SUCCESS] Current session PATH updated - pullpoet is now available!
+    )
+    
     echo.
     echo Quick start:
     echo   pullpoet --help                    # Show help

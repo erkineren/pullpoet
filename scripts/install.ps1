@@ -1,6 +1,22 @@
 # PullPoet Windows Install Script
 # Automatically detects architecture and installs latest release from GitHub
-# Usage: Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing).Content
+# 
+# Usage Examples:
+#   # Install latest version
+#   Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing).Content
+#   
+#   # Update to latest version
+#   Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing).Content -Update
+#   
+#   # Install to custom directory
+#   Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing).Content -InstallDir "C:\Tools\pullpoet"
+#   
+#   # Uninstall
+#   Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing).Content -Uninstall
+#   
+#   # Alternative: Download and run locally
+#   Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -OutFile "install.ps1"
+#   .\install.ps1 -Uninstall
 
 param(
     [switch]$Update,
@@ -187,9 +203,32 @@ function Add-ToPath {
         $newPath = "$currentPath;$InstallDir"
         [Environment]::SetEnvironmentVariable("PATH", $newPath, "User")
         Write-Success "Added $InstallDir to PATH"
-        Write-Info "You may need to restart your terminal for PATH changes to take effect"
+        
+        # Refresh current session's PATH
+        $env:PATH = "$env:PATH;$InstallDir"
+        Write-Info "Updated current session PATH - pullpoet is now available!"
+        
+        # Verify the binary is accessible
+        $binaryPath = Join-Path $InstallDir $BinaryName
+        if (Test-Path $binaryPath) {
+            try {
+                $testOutput = & $binaryPath --version 2>$null
+                if ($testOutput) {
+                    Write-Success "✅ PullPoet is ready to use in this session!"
+                }
+            }
+            catch {
+                Write-Warning "Binary found but could not execute. You may need to restart your terminal."
+            }
+        }
     } else {
         Write-Info "$InstallDir is already in PATH"
+        
+        # Still refresh current session PATH to ensure it's available
+        if ($env:PATH -notlike "*$InstallDir*") {
+            $env:PATH = "$env:PATH;$InstallDir"
+            Write-Info "Updated current session PATH"
+        }
     }
 }
 
@@ -343,6 +382,27 @@ try {
     if ($PSVersionTable.PSVersion.Major -lt 5) {
         Write-Error "PowerShell 5.0 or higher is required"
         exit 1
+    }
+    
+    # Handle parameters passed via Invoke-Expression
+    # When script is downloaded and executed via Invoke-Expression, parameters need special handling
+    $scriptArgs = $args
+    if ($scriptArgs.Count -gt 0) {
+        # Parse arguments manually for Invoke-Expression compatibility
+        for ($i = 0; $i -lt $scriptArgs.Count; $i++) {
+            switch ($scriptArgs[$i]) {
+                "-Update" { $Update = $true }
+                "-Force" { $Force = $true }
+                "-Uninstall" { $Uninstall = $true }
+                "-Help" { $Help = $true }
+                "-InstallDir" { 
+                    if ($i + 1 -lt $scriptArgs.Count) {
+                        $InstallDir = $scriptArgs[$i + 1]
+                        $i++ # Skip next argument as it's the value
+                    }
+                }
+            }
+        }
     }
     
     # Handle parameters

@@ -71,6 +71,10 @@ Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erk
 
 # Uninstall
 Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing).Content -Uninstall
+
+# Alternative: Download and run locally (recommended for parameters)
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -OutFile "install.ps1"
+.\install.ps1 -Uninstall
 ```
 
 **Batch File (Easiest):**
@@ -82,12 +86,18 @@ install.bat
 
 # Or run directly
 curl -sSL https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.bat | cmd
+
+# With parameters (update, uninstall, etc.)
+install.bat -Update
+install.bat -Uninstall
+install.bat -InstallDir "C:\Tools\pullpoet"
 ```
 
 **Windows Features:**
 
 - ✅ **Auto-detects Windows architecture** (x86_64, i386)
 - ✅ **Automatic PATH configuration** for user environment
+- ✅ **Current session PATH refresh** - no terminal restart needed
 - ✅ **Installation to user directory** (no admin required)
 - ✅ **PowerShell 5.0+ compatibility** check
 - ✅ **Progress indicators** and colored output
