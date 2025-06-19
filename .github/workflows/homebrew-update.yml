@@ -3,6 +3,7 @@ name: Update Homebrew Formula
 on:
   release:
     types: [published]
+    branches: [main]
   workflow_dispatch:
     inputs:
       tag_name:
