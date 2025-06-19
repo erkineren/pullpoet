@@ -32,6 +32,27 @@ $RepoUrl = "https://github.com/$RepoOwner/$RepoName"
 $DefaultInstallDir = "$env:LOCALAPPDATA\Programs\pullpoet"
 $BinaryName = "pullpoet.exe"
 
+# Parse arguments manually for Invoke-Expression compatibility
+for ($i = 0; $i -lt $args.Count; $i++) {
+    switch ($args[$i]) {
+        "-Update" { $Update = $true }
+        "-Force" { $Force = $true }
+        "-Uninstall" { $Uninstall = $true }
+        "-Help" { $Help = $true }
+        "-InstallDir" { 
+            if ($i + 1 -lt $args.Count) {
+                $InstallDir = $args[$i + 1]
+                $i++ # Skip next argument as it's the value
+            }
+        }
+    }
+}
+
+# Set default installation directory if not provided
+if (-not $InstallDir) {
+    $InstallDir = $DefaultInstallDir
+}
+
 # Colors for output
 $Colors = @{
     Red = "Red"
@@ -261,11 +282,6 @@ function Main {
     Write-Host "🚀 PullPoet Windows Install Script" -ForegroundColor $Colors.White
     Write-Host "=====================================" -ForegroundColor $Colors.White
     Write-Host ""
-    
-    # Set installation directory
-    if (-not $InstallDir) {
-        $script:InstallDir = $DefaultInstallDir
-    }
     
     Write-Info "Target installation directory: $InstallDir"
     
