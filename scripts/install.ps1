@@ -81,7 +81,7 @@ function Get-LatestVersion {
     }
     catch {
         Write-Error "Failed to fetch latest version from GitHub: $($_.Exception.Message)"
-        exit 1
+        return $null
     }
 }
 
@@ -280,7 +280,7 @@ function Main {
     
     if (-not $latestVersion) {
         Write-Error "Failed to fetch latest version from GitHub"
-        exit 1
+        return
     }
     
     Write-Info "Latest version available: v$latestVersion"
@@ -295,7 +295,7 @@ function Main {
             $comparison = Compare-Versions -Version1 $latestVersion -Version2 $installedVersion
             if ($comparison -eq 0) {
                 Write-Success "Already running the latest version (v$latestVersion)"
-                exit 0
+                return
             } elseif ($comparison -gt 0) {
                 Write-Info "Updating from v$installedVersion to v$latestVersion"
             } else {
@@ -304,7 +304,7 @@ function Main {
                     $response = Read-Host "Do you want to downgrade? (y/N)"
                     if ($response -notmatch '^[Yy]$') {
                         Write-Info "Installation cancelled"
-                        exit 0
+                        return
                     }
                 }
             }
@@ -313,13 +313,13 @@ function Main {
             if ($comparison -eq 0) {
                 Write-Success "PullPoet v$latestVersion is already installed"
                 Write-Info "Use -Force to reinstall or -Update to check for updates"
-                exit 0
+                return
             } else {
                 Write-Warning "PullPoet is already installed (v$installedVersion)"
                 $response = Read-Host "Do you want to install v$latestVersion? (y/N)"
                 if ($response -notmatch '^[Yy]$') {
                     Write-Info "Installation cancelled"
-                    exit 0
+                    return
                 }
             }
         }
@@ -381,7 +381,7 @@ try {
     # Check PowerShell version
     if ($PSVersionTable.PSVersion.Major -lt 5) {
         Write-Error "PowerShell 5.0 or higher is required"
-        exit 1
+        return
     }
     
     # Set default installation directory if not provided
@@ -428,12 +428,12 @@ try {
     # Handle parameters
     if ($Help) {
         Show-Usage
-        exit 0
+        return
     }
     
     if ($Uninstall) {
         Uninstall-PullPoet
-        exit 0
+        return
     }
     
     # Run main installation
@@ -441,5 +441,5 @@ try {
 }
 catch {
     Write-Error "An error occurred: $($_.Exception.Message)"
-    exit 1
+    return
 } 

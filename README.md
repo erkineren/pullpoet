@@ -88,6 +88,22 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/mai
 .\install.ps1 -Uninstall
 ```
 
+**PowerShell Common Mistakes & Solutions:**
+
+```powershell
+# ❌ WRONG - Missing $ for variable
+script = Invoke-WebRequest -Uri "..." -UseBasicParsing
+
+# ✅ CORRECT - Use $ for variables
+$script = Invoke-WebRequest -Uri "..." -UseBasicParsing
+
+# ❌ WRONG - Parameter passed to Invoke-Expression
+Invoke-Expression $script.Content -Update
+
+# ✅ CORRECT - Parameter as part of string
+Invoke-Expression "$($script.Content) -Update"
+```
+
 **Batch File (Easiest):**
 
 ```cmd
