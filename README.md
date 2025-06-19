@@ -27,7 +27,78 @@ A Go CLI tool that generates AI-powered pull request titles and descriptions by 
 
 ## Installation
 
-### Homebrew (Recommended) 🍺
+### Universal Install Script (Recommended) 🚀
+
+**One-liner installation for all platforms:**
+
+```bash
+# Install latest version
+curl -sSL https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.sh | bash
+
+# Update to latest version
+curl -sSL https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.sh | bash -s -- --update
+
+# Install to custom directory
+INSTALL_DIR=~/.local/bin curl -sSL https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.sh | bash
+
+# Uninstall
+curl -sSL https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.sh | bash -s -- --uninstall
+```
+
+**Features:**
+
+- ✅ **Auto-detects OS/Architecture** (Linux, macOS, Windows)
+- ✅ **Downloads latest release** from GitHub automatically
+- ✅ **Update functionality** with `--update` flag
+- ✅ **Custom installation directory** support
+- ✅ **Uninstall option** with `--uninstall` flag
+- ✅ **Version verification** after installation
+- ✅ **Progress indicators** and colored output
+
+### Windows Native Installation 🪟
+
+**PowerShell (Recommended):**
+
+```powershell
+# Install latest version
+Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing).Content
+
+# Update to latest version
+Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing).Content -Update
+
+# Install to custom directory
+Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing).Content -InstallDir "C:\Tools\pullpoet"
+
+# Uninstall
+Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing).Content -Uninstall
+```
+
+**Batch File (Easiest):**
+
+```cmd
+# Download and run the batch installer
+curl -sSL https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.bat -o install.bat
+install.bat
+
+# Or run directly
+curl -sSL https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.bat | cmd
+```
+
+**Windows Features:**
+
+- ✅ **Auto-detects Windows architecture** (x86_64, i386)
+- ✅ **Automatic PATH configuration** for user environment
+- ✅ **Installation to user directory** (no admin required)
+- ✅ **PowerShell 5.0+ compatibility** check
+- ✅ **Progress indicators** and colored output
+- ✅ **Update and uninstall** functionality
+
+**Prerequisites:**
+
+- PowerShell 5.0 or higher (Windows 10+ includes this by default)
+- Internet connection for downloading
+
+### Homebrew (macOS/Linux) 🍺
 
 ```bash
 # Install directly from tap
@@ -100,6 +171,8 @@ pullpoet \
 
 Configure PullPoet using environment variables to avoid repeating common parameters:
 
+**Linux/macOS:**
+
 ```bash
 # Set environment variables
 export PULLPOET_PROVIDER=openai
@@ -113,6 +186,34 @@ pullpoet --target main
 
 # Environment variables + CLI flags (CLI flags take precedence)
 pullpoet --target main --model gpt-4  # Uses gpt-4 instead of env var
+```
+
+**Windows (PowerShell):**
+
+```powershell
+# Set environment variables
+$env:PULLPOET_PROVIDER="openai"
+$env:PULLPOET_MODEL="gpt-3.5-turbo"
+$env:PULLPOET_API_KEY="your-openai-api-key"
+$env:PULLPOET_PROVIDER_BASE_URL="https://api.openai.com"  # optional
+$env:PULLPOET_CLICKUP_PAT="pk_123456789_ABCDEFGHIJKLMNOPQRSTUVWXYZ"  # optional
+
+# Now run with minimal flags
+pullpoet --target main
+```
+
+**Windows (Command Prompt):**
+
+```cmd
+# Set environment variables
+set PULLPOET_PROVIDER=openai
+set PULLPOET_MODEL=gpt-3.5-turbo
+set PULLPOET_API_KEY=your-openai-api-key
+set PULLPOET_PROVIDER_BASE_URL=https://api.openai.com
+set PULLPOET_CLICKUP_PAT=pk_123456789_ABCDEFGHIJKLMNOPQRSTUVWXYZ
+
+# Now run with minimal flags
+pullpoet --target main
 ```
 
 **Supported Environment Variables:**
