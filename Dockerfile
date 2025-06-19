@@ -50,5 +50,11 @@ RUN chown appuser:appgroup /app/pullpoet
 # Switch to non-root user
 USER appuser
 
+# Add helpful volume mount point
+VOLUME ["/workspace"]
+
+# Set default working directory to workspace
+WORKDIR /workspace
+
 # Set entrypoint
-ENTRYPOINT ["./pullpoet"] 
+ENTRYPOINT ["/app/pullpoet"] 

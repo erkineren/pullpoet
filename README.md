@@ -127,19 +127,49 @@ pullpoet --target main --model gpt-4  # Uses gpt-4 instead of env var
 
 ### Docker Usage 🐳
 
-You can run PullPoet directly using Docker without installing it locally:
+You can run PullPoet directly using Docker without installing it locally.
+
+#### **🎯 Smart Docker Usage (Recommended)**
+
+For the best experience with auto-detection, use the Docker wrapper script:
 
 ```bash
-# Basic usage with Docker
-docker run --rm erkineren/pullpoet \
-  --repo https://github.com/example/repo.git \
-  --source feature/login \
-  --target main \
-  --provider openai \
-  --model gpt-3.5-turbo \
-  --api-key your-openai-api-key
+# Download and use the Docker wrapper script
+curl -sSL https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/docker-run.sh > pullpoet-docker
+chmod +x pullpoet-docker
 
-# With Gemini (recommended)
+# Set your environment variables
+export PULLPOET_PROVIDER=gemini
+export PULLPOET_MODEL=gemini-2.5-flash-preview-05-20
+export PULLPOET_API_KEY=your-gemini-api-key
+
+# Run from within your git repository - auto-detects everything!
+cd /path/to/your/git/repo
+./pullpoet-docker
+```
+
+**What the wrapper script does:**
+
+- ✅ **Auto-mounts current git repository** → Git info detection works
+- ✅ **Passes environment variables** → No need to repeat API keys
+- ✅ **Sets working directory correctly** → Auto-detection works perfectly
+- ✅ **Validates git repository** → Prevents common errors
+
+#### **⚡ Manual Docker Usage**
+
+If you prefer manual control or can't use the wrapper script:
+
+```bash
+# Option A: Mount current git repository for auto-detection
+docker run --rm \
+  -v "$(pwd):/workspace" \
+  -w /workspace \
+  -e PULLPOET_PROVIDER=gemini \
+  -e PULLPOET_MODEL=gemini-2.5-flash-preview-05-20 \
+  -e PULLPOET_API_KEY=your-gemini-api-key \
+  erkineren/pullpoet
+
+# Option B: Manual parameters (no auto-detection)
 docker run --rm erkineren/pullpoet \
   --repo https://github.com/example/repo.git \
   --source feature/login \
@@ -148,26 +178,42 @@ docker run --rm erkineren/pullpoet \
   --model gemini-2.5-flash-preview-05-20 \
   --api-key your-gemini-api-key
 
-# With ClickUp integration
-docker run --rm erkineren/pullpoet \
-  --repo https://github.com/example/repo.git \
-  --source feature/new-feature \
-  --target main \
-  --provider gemini \
-  --model gemini-2.5-flash-preview-05-20 \
-  --api-key your-gemini-api-key \
-  --clickup-pat pk_123456789_ABCDEFGHIJKLMNOPQRSTUVWXYZ \
-  --clickup-task-id 86c2dbq35
+# Option C: Save output to file
+docker run --rm \
+  -v "$(pwd):/workspace" \
+  -w /workspace \
+  -e PULLPOET_PROVIDER=gemini \
+  -e PULLPOET_MODEL=gemini-2.5-flash-preview-05-20 \
+  -e PULLPOET_API_KEY=your-gemini-api-key \
+  erkineren/pullpoet \
+  --output pr-description.md
+```
 
-# Save output to a file (mount current directory)
-docker run --rm -v $(pwd):/app erkineren/pullpoet \
-  --repo https://github.com/example/repo.git \
-  --source feature/login \
-  --target main \
-  --provider openai \
-  --model gpt-3.5-turbo \
-  --api-key your-openai-api-key \
-  --output /app/pr-description.md
+#### **🐛 Docker Troubleshooting**
+
+**Problem:** Auto-detection doesn't work in Docker  
+**Solution:** Mount your git repository as volume:
+
+```bash
+# ❌ Wrong - no git repository access
+docker run --rm erkineren/pullpoet
+
+# ✅ Correct - git repository mounted
+docker run --rm -v "$(pwd):/workspace" -w /workspace erkineren/pullpoet
+```
+
+**Problem:** Environment variables not passed  
+**Solution:** Use `-e` flag or wrapper script:
+
+```bash
+# ❌ Wrong - environment variables not accessible
+docker run --rm erkineren/pullpoet
+
+# ✅ Correct - environment variables passed
+docker run --rm \
+  -e PULLPOET_PROVIDER=gemini \
+  -e PULLPOET_API_KEY=your-key \
+  erkineren/pullpoet
 ```
 
 ### Basic Usage
