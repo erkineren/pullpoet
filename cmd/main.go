@@ -15,6 +15,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// version will be set by ldflags during build
+var version = "dev"
+
 var (
 	repo            string
 	source          string
@@ -99,10 +102,11 @@ func getClickUpPATFromEnvOrFlag() string {
 // }
 
 var rootCmd = &cobra.Command{
-	Use:   "pullpoet",
-	Short: "Generate AI-powered pull request descriptions",
-	Long:  `PullPoet is a CLI tool that generates pull request titles and descriptions using AI providers like OpenAI and Ollama.`,
-	RunE:  run,
+	Use:     "pullpoet",
+	Short:   "Generate AI-powered pull request descriptions",
+	Long:    `PullPoet is a CLI tool that generates pull request titles and descriptions using AI providers like OpenAI and Ollama.`,
+	Version: version,
+	RunE:    run,
 }
 
 func init() {
