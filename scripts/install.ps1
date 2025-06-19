@@ -66,10 +66,16 @@ $downloadUrl = "https://github.com/$repo/releases/download/$latestVersion/pullpo
 $exePath = "$installDir\pullpoet.exe"
 
 if (-not (Test-Path $installDir)) {
-    New-Item -ItemType Directory -Path $installDir | Out-Null
+    New-Item -ItemType Directory -Path $installDir -Force | Out-Null
 }
 
-Invoke-WebRequest -Uri $downloadUrl -OutFile $exePath -UseBasicParsing
+try {
+    Invoke-WebRequest -Uri $downloadUrl -OutFile $exePath -UseBasicParsing -ErrorAction Stop
+} catch {
+    Write-Host "[ERROR] Failed to download executable from $downloadUrl"
+    exit 1
+}
+
 Set-Content -Path $installedVersionFile -Value $latestVersion
 
 Write-Host "[SUCCESS] PullPoet $latestVersion installed to $exePath"
