@@ -23,6 +23,12 @@ jobs:
         with:
           go-version: stable
       -
+        name: Show version info
+        run: |
+          echo "Building version: ${{ github.ref_name }}"
+          echo "Tag: ${{ github.ref }}"
+          echo "Commit: ${{ github.sha }}"
+      -
         name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
         with:
