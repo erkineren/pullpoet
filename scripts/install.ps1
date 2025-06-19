@@ -389,6 +389,9 @@ try {
         $script:InstallDir = $DefaultInstallDir
     }
     
+    # Debug: Show received arguments
+    # Write-Host "DEBUG: Received $($args.Count) arguments: $args" -ForegroundColor Magenta
+    
     # Handle parameters passed via Invoke-Expression
     # When script is downloaded and executed via Invoke-Expression, parameters need special handling
     $scriptArgs = $args
@@ -396,14 +399,27 @@ try {
     # Parse arguments manually for Invoke-Expression compatibility
     for ($i = 0; $i -lt $scriptArgs.Count; $i++) {
         switch ($scriptArgs[$i]) {
-            "-Update" { $Update = $true }
-            "-Force" { $Force = $true }
-            "-Uninstall" { $Uninstall = $true }
-            "-Help" { $Help = $true }
+            "-Update" { 
+                $script:Update = $true 
+                # Write-Host "DEBUG: Update flag set" -ForegroundColor Magenta
+            }
+            "-Force" { 
+                $script:Force = $true 
+                # Write-Host "DEBUG: Force flag set" -ForegroundColor Magenta
+            }
+            "-Uninstall" { 
+                $script:Uninstall = $true 
+                # Write-Host "DEBUG: Uninstall flag set" -ForegroundColor Magenta
+            }
+            "-Help" { 
+                $script:Help = $true 
+                # Write-Host "DEBUG: Help flag set" -ForegroundColor Magenta
+            }
             "-InstallDir" { 
                 if ($i + 1 -lt $scriptArgs.Count) {
                     $script:InstallDir = $scriptArgs[$i + 1]
                     $i++ # Skip next argument as it's the value
+                    # Write-Host "DEBUG: InstallDir set to $InstallDir" -ForegroundColor Magenta
                 }
             }
         }
