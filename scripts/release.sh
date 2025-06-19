@@ -1,8 +1,7 @@
 #!/bin/bash
 
 # PullPoet Release Script
-# This script handles tagging and Homebrew updates
-# GitHub CI automatically creates releases when tags are pushed
+# This script handles tagging. GitHub CI automatically creates releases and updates Homebrew
 
 set -e # Exit on any error
 
@@ -15,8 +14,6 @@ NC='\033[0m' # No Color
 
 # Configuration
 REPO_NAME="erkineren/pullpoet"
-HOMEBREW_TAP="erkineren/homebrew-pullpoet"
-HOMEBREW_TAP_PATH="${HOMEBREW_TAP_PATH:-/Users/erkineren/development/workspaces/personal/homebrew-pullpoet}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
@@ -52,10 +49,6 @@ check_prerequisites() {
         missing_tools+=("git")
     fi
 
-    if ! command_exists gh; then
-        missing_tools+=("gh (GitHub CLI)")
-    fi
-
     if ! command_exists go; then
         missing_tools+=("go")
     fi
@@ -63,12 +56,6 @@ check_prerequisites() {
     if [ ${#missing_tools[@]} -ne 0 ]; then
         print_error "Missing required tools: ${missing_tools[*]}"
         print_status "Please install the missing tools and try again."
-        exit 1
-    fi
-
-    # Check if GitHub CLI is authenticated
-    if ! gh auth status >/dev/null 2>&1; then
-        print_error "GitHub CLI is not authenticated. Please run 'gh auth login' first."
         exit 1
     fi
 
@@ -137,6 +124,9 @@ build_local() {
     fi
 
     print_success "Local build successful"
+
+    # Clean up the binary
+    rm -f pullpoet
 }
 
 # Function to create and push git tag
@@ -165,100 +155,7 @@ create_git_tag() {
     git push origin "$tag"
 
     echo "[SUCCESS] Git tag $tag created and pushed" >&2
-    echo "[INFO] GitHub CI will automatically create a release for this tag" >&2
-}
-
-# Function to wait for GitHub release
-wait_for_github_release() {
-    local version=$1
-    local tag="v$version"
-    local max_attempts=30
-    local attempt=1
-
-    print_status "Waiting for GitHub release to be created by CI..."
-
-    while [ $attempt -le $max_attempts ]; do
-        if gh release view "$tag" >/dev/null 2>&1; then
-            print_success "GitHub release found!"
-            return 0
-        fi
-
-        print_status "Attempt $attempt/$max_attempts: Release not ready yet, waiting 10 seconds..."
-        sleep 10
-        ((attempt++))
-    done
-
-    print_warning "GitHub release not found after $max_attempts attempts"
-    print_status "You may need to check the CI status manually"
-    return 1
-}
-
-# Function to update Homebrew formula
-update_homebrew() {
-    local version=$1
-    local formula_file="$HOMEBREW_TAP_PATH/pullpoet.rb"
-
-    print_status "Updating Homebrew formula..."
-
-    # Check if Homebrew tap directory exists
-    if [[ ! -d "$HOMEBREW_TAP_PATH" ]]; then
-        print_error "Homebrew tap directory not found: $HOMEBREW_TAP_PATH"
-        print_status "Please clone the Homebrew tap repository first:"
-        print_status "git clone https://github.com/$HOMEBREW_TAP.git $HOMEBREW_TAP_PATH"
-        return 1
-    fi
-
-    # Get the release URL and SHA256
-    local release_url="https://github.com/$REPO_NAME/archive/v$version.tar.gz"
-    local temp_file="/tmp/pullpoet-v$version.tar.gz"
-
-    # Download the release tarball
-    print_status "Downloading release tarball..."
-    if ! curl -L -o "$temp_file" "$release_url"; then
-        print_error "Failed to download release tarball"
-        print_status "Make sure the GitHub release exists and is accessible"
-        return 1
-    fi
-
-    # Calculate SHA256
-    local sha256_hash
-    sha256_hash=$(shasum -a 256 "$temp_file" | cut -d' ' -f1)
-
-    # Clean up temp file
-    rm "$temp_file"
-
-    # Update the formula
-    sed -i.bak "s|url \".*\"|url \"$release_url\"|" "$formula_file"
-    sed -i.bak "s|sha256 \".*\"|sha256 \"$sha256_hash\"|" "$formula_file"
-
-    # Remove backup file
-    rm "${formula_file}.bak"
-
-    print_success "Homebrew formula updated"
-    print_status "New URL: $release_url"
-    print_status "New SHA256: $sha256_hash"
-}
-
-# Function to commit and push Homebrew changes
-commit_homebrew_changes() {
-    local version=$1
-
-    print_status "Committing Homebrew changes..."
-
-    # Change to Homebrew tap directory
-    cd "$HOMEBREW_TAP_PATH"
-
-    # Check if there are changes to commit
-    if git diff --quiet pullpoet.rb; then
-        print_warning "No changes to commit in Homebrew formula"
-        return
-    fi
-
-    git add pullpoet.rb
-    git commit -m "Update pullpoet to v$version"
-    git push origin main
-
-    print_success "Homebrew changes committed and pushed"
+    echo "[INFO] GitHub CI will automatically create a release and update Homebrew" >&2
 }
 
 # Function to display release summary
@@ -272,12 +169,15 @@ display_summary() {
     echo "Version: $version"
     echo "Tag: v$version"
     echo "GitHub Release: https://github.com/$REPO_NAME/releases/tag/v$version"
-    echo "Homebrew Formula: Updated"
+    echo
+    echo "Automated processes:"
+    echo "✅ GitHub Release will be created automatically"
+    echo "✅ Homebrew formula will be updated automatically"
     echo
     echo "Next steps:"
-    echo "1. Verify the GitHub release assets"
-    echo "2. Test the Homebrew installation: brew install $HOMEBREW_TAP/pullpoet"
-    echo "3. Update documentation if needed"
+    echo "1. Check GitHub Actions for release and homebrew update status"
+    echo "2. Verify the GitHub release assets"
+    echo "3. Test the Homebrew installation: brew install erkineren/pullpoet/pullpoet"
     echo "=========================================="
 }
 
@@ -285,7 +185,6 @@ display_summary() {
 main() {
     echo "🚀 PullPoet Release Script"
     echo "=========================="
-    echo "Homebrew Tap Path: $HOMEBREW_TAP_PATH"
     echo
 
     # Check prerequisites
@@ -316,28 +215,17 @@ main() {
     # Run tests
     run_tests
 
-    # Build locally
+    # Build locally to verify
     build_local
 
-    # Create git tag (this triggers GitHub CI to create release)
+    # Create git tag (this triggers GitHub CI to create release and update Homebrew)
     create_git_tag "$version"
-
-    # Wait for GitHub release to be created
-    if wait_for_github_release "$version"; then
-        # Update Homebrew formula
-        update_homebrew "$version"
-
-        # Commit Homebrew changes
-        commit_homebrew_changes "$version"
-    else
-        print_warning "Skipping Homebrew update due to release not being ready"
-        print_status "You can run the script again later to update Homebrew"
-    fi
 
     # Display summary
     display_summary "$version"
 
-    print_success "Release process completed successfully! 🎉"
+    print_success "Release process initiated successfully! 🎉"
+    print_status "Check GitHub Actions for automated release and Homebrew update progress."
 }
 
 # Run main function
