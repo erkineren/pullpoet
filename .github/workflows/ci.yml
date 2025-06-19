@@ -57,7 +57,8 @@ jobs:
     - name: Build
       run: |
         mkdir -p bin
-        go build -v -o ./bin/pullpoet ./cmd
+        VERSION=$(echo $GITHUB_REF | sed 's/refs\/tags\/v//' || echo 'dev')
+        go build -v -ldflags "-X main.version=${VERSION}" -o ./bin/pullpoet ./cmd
 
   build-releases:
     runs-on: ubuntu-latest
@@ -78,10 +79,18 @@ jobs:
     - name: Build for multiple platforms
       run: |
         mkdir -p bin
-        GOOS=linux GOARCH=amd64 go build -o bin/pullpoet-linux-amd64 ./cmd
-        GOOS=darwin GOARCH=amd64 go build -o bin/pullpoet-darwin-amd64 ./cmd
-        GOOS=darwin GOARCH=arm64 go build -o bin/pullpoet-darwin-arm64 ./cmd
-        GOOS=windows GOARCH=amd64 go build -o bin/pullpoet-windows-amd64.exe ./cmd
+        if [[ $GITHUB_REF == refs/tags/* ]]; then
+          VERSION=${GITHUB_REF#refs/tags/}
+          VERSION=${VERSION#v}
+        else
+          VERSION="dev"
+        fi
+        echo "Building with version: $VERSION"
+        LDFLAGS="-X main.version=${VERSION}"
+        GOOS=linux GOARCH=amd64 go build -ldflags "$LDFLAGS" -o bin/pullpoet-linux-amd64 ./cmd
+        GOOS=darwin GOARCH=amd64 go build -ldflags "$LDFLAGS" -o bin/pullpoet-darwin-amd64 ./cmd
+        GOOS=darwin GOARCH=arm64 go build -ldflags "$LDFLAGS" -o bin/pullpoet-darwin-arm64 ./cmd
+        GOOS=windows GOARCH=amd64 go build -ldflags "$LDFLAGS" -o bin/pullpoet-windows-amd64.exe ./cmd
     
     - name: Upload artifacts (for main branch)
       if: github.ref == 'refs/heads/main'

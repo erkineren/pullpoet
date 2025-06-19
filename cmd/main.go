@@ -126,6 +126,10 @@ func init() {
 	rootCmd.Flags().StringVar(&clickupPAT, "clickup-pat", "", "ClickUp Personal Access Token (can also be set via PULLPOET_CLICKUP_PAT env var)")
 	rootCmd.Flags().StringVar(&clickupTaskID, "clickup-task-id", "", "ClickUp Task ID to fetch description from (must be provided via flag)")
 
+	// Set version template and enable -v shorthand
+	rootCmd.SetVersionTemplate("{{.Version}}\n")
+	rootCmd.Flags().BoolP("version", "v", false, "version for pullpoet")
+
 	// Flag validasyonunu kaldırdık, run fonksiyonunda manuel validasyon yapacağız
 }
 
@@ -169,6 +173,12 @@ func savePRToFile(result *pr.Result, filePath string) error {
 }
 
 func run(cmd *cobra.Command, args []string) error {
+	// Check if version flag was used
+	if versionFlag, _ := cmd.Flags().GetBool("version"); versionFlag {
+		fmt.Println(version)
+		return nil
+	}
+
 	fmt.Println("🚀 Starting PullPoet...")
 
 	// Manual validation for required fields (including environment variables)

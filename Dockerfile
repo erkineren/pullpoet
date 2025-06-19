@@ -1,6 +1,9 @@
 # Build stage
 FROM golang:1.24-alpine AS builder
 
+# Build argument for version (can be passed during docker build)
+ARG VERSION=""
+
 # Install git and ca-certificates for git operations
 RUN apk add --no-cache git ca-certificates
 
@@ -16,8 +19,14 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o pullpoet ./cmd/main.go
+# Build the application with version
+# Since .git is excluded from Docker context, we rely on build ARG
+RUN VERSION_TO_USE=${VERSION:-dev} && \
+    echo "Using version: ${VERSION_TO_USE}" && \
+    CGO_ENABLED=0 GOOS=linux go build \
+    -a -installsuffix cgo \
+    -ldflags "-s -w -X main.version=${VERSION_TO_USE}" \
+    -o pullpoet ./cmd/main.go
 
 # Runtime stage
 FROM alpine:latest

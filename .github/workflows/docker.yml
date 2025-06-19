@@ -65,6 +65,20 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=main,enable={{is_default_branch}}
 
+      - name: Extract version for build
+        id: version
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+            VERSION=${VERSION#v}
+            echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+            echo "Building with tag version: $VERSION"
+          else
+            VERSION="dev"
+            echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+            echo "Building with dev version: $VERSION"
+          fi
+
       - name: Debug Metadata
         if: github.event_name != 'pull_request'
         run: |
@@ -81,8 +95,13 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ steps.version.outputs.VERSION }}
 
       - name: Test Docker image
         run: |
-          docker build -t pullpoet:test .
-          docker run --rm pullpoet:test --help 
+          docker build --build-arg VERSION=${{ steps.version.outputs.VERSION }} -t pullpoet:test .
+          echo "Testing --help flag:"
+          docker run --rm pullpoet:test --help
+          echo "Testing -v flag:"
+          docker run --rm pullpoet:test -v 
