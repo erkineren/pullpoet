@@ -27,9 +27,9 @@ A Go CLI tool that generates AI-powered pull request titles and descriptions by 
 
 ## Installation
 
-### Universal Install Script (Recommended) 🚀
+### Universal Install Script (Linux/macOS) 🚀
 
-**One-liner installation for all platforms:**
+**One-liner installation for Unix-like systems:**
 
 ```bash
 # Install latest version
@@ -45,59 +45,33 @@ INSTALL_DIR=~/.local/bin curl -sSL https://raw.githubusercontent.com/erkineren/p
 curl -sSL https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.sh | bash -s -- --uninstall
 ```
 
-**Features:**
-
-- ✅ **Auto-detects OS/Architecture** (Linux, macOS, Windows)
-- ✅ **Downloads latest release** from GitHub automatically
-- ✅ **Update functionality** with `--update` flag
-- ✅ **Custom installation directory** support
-- ✅ **Uninstall option** with `--uninstall` flag
-- ✅ **Version verification** after installation
-- ✅ **Progress indicators** and colored output
-
-### Windows Native Installation 🪟
+### Windows Installation 🪟
 
 **PowerShell (Recommended):**
 
 ```powershell
+# Download the installer script (run once)
+$scriptPath = "$env:TEMP\install-pullpoet.ps1"
+Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1' -OutFile $scriptPath
+
 # Install latest version
-Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing).Content
+& $scriptPath
 
 # Update to latest version
-Invoke-Expression "$((Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1' -UseBasicParsing).Content) -Update"
+& $scriptPath -Update
 
 # Install to custom directory
-Invoke-Expression "$((Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1' -UseBasicParsing).Content) -InstallDir 'C:\Tools\pullpoet'"
+& $scriptPath -InstallDir 'C:\Tools\pullpoet'
 
 # Uninstall
-Invoke-Expression "$((Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1' -UseBasicParsing).Content) -Uninstall"
+& $scriptPath -Uninstall
 
 # Force reinstall
-Invoke-Expression "$((Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1' -UseBasicParsing).Content) -Force"
+& $scriptPath -Force
 
-# Two-step method (alternative)
-$script = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -UseBasicParsing
-Invoke-Expression "$($script.Content) -Update"
-
-# Download and run locally (most reliable)
+# Alternative: Download and run locally
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/erkineren/pullpoet/main/scripts/install.ps1" -OutFile "install.ps1"
 .\install.ps1 -Uninstall
-```
-
-**PowerShell Common Mistakes & Solutions:**
-
-```powershell
-# ❌ WRONG - Missing $ for variable
-script = Invoke-WebRequest -Uri "..." -UseBasicParsing
-
-# ✅ CORRECT - Use $ for variables
-$script = Invoke-WebRequest -Uri "..." -UseBasicParsing
-
-# ❌ WRONG - Parameter passed to Invoke-Expression
-Invoke-Expression $script.Content -Update
-
-# ✅ CORRECT - Parameter as part of string
-Invoke-Expression "$($script.Content) -Update"
 ```
 
 **Batch File (Easiest):**
@@ -115,21 +89,6 @@ install.bat -Update
 install.bat -Uninstall
 install.bat -InstallDir "C:\Tools\pullpoet"
 ```
-
-**Windows Features:**
-
-- ✅ **Auto-detects Windows architecture** (x86_64, i386)
-- ✅ **Automatic PATH configuration** for user environment
-- ✅ **Current session PATH refresh** - no terminal restart needed
-- ✅ **Installation to user directory** (no admin required)
-- ✅ **PowerShell 5.0+ compatibility** check
-- ✅ **Progress indicators** and colored output
-- ✅ **Update and uninstall** functionality
-
-**Prerequisites:**
-
-- PowerShell 5.0 or higher (Windows 10+ includes this by default)
-- Internet connection for downloading
 
 ### Homebrew (macOS/Linux) 🍺
 
