@@ -12,6 +12,9 @@ A Go CLI tool that generates AI-powered pull request titles and descriptions by 
 - **🍺 Homebrew Support**: Easy installation via Homebrew on macOS and Linux
 - **🐳 Docker Support**: Run as a container without local installation
 - **🤖 Multi-Provider Support**: Works with OpenAI, Ollama, Google Gemini, and OpenWebUI
+- **🔍 Auto-Detection**: Automatically detects git repository, current branch, and default branch
+- **🌍 Environment Variables**: Support for configuration via environment variables
+- **🔑 SSH & HTTPS Support**: Works with both public and private repositories
 - **📦 Git Integration**: Automatically clones repositories and generates diffs between branches
 - **🧠 Smart Analysis**: Combines git diffs with optional manual descriptions for context
 - **✨ Professional Output**: Generates beautiful PR descriptions with emojis and structured markdown
@@ -64,6 +67,64 @@ go install ./cmd
 
 ## Usage
 
+### Auto-Detection Features 🔍
+
+PullPoet can automatically detect git repository information when run from within a git repository:
+
+```bash
+# Minimal usage - auto-detects repo, source branch, and target branch
+pullpoet --provider openai --model gpt-3.5-turbo --api-key your-key
+
+# Auto-detects repo and source, specify target
+pullpoet --target main --provider openai --model gpt-3.5-turbo --api-key your-key
+
+# Manual override of auto-detected values
+pullpoet \
+  --repo https://github.com/custom/repo.git \
+  --source custom-branch \
+  --target main \
+  --provider openai \
+  --model gpt-3.5-turbo \
+  --api-key your-key
+```
+
+**Auto-Detection Features:**
+
+- **Repository URL**: Automatically uses `git remote get-url origin`
+- **Source Branch**: Uses current branch (`git rev-parse --abbrev-ref HEAD`)
+- **Target Branch**: Uses default branch (typically `main` or `master`)
+- **SSH Support**: Supports both SSH (`git@github.com:user/repo.git`) and HTTPS URLs
+- **Private Repositories**: Works with private repos using SSH keys or git credentials
+
+### Environment Variables Support 🌍
+
+Configure PullPoet using environment variables to avoid repeating common parameters:
+
+```bash
+# Set environment variables
+export PULLPOET_PROVIDER=openai
+export PULLPOET_MODEL=gpt-3.5-turbo
+export PULLPOET_API_KEY=your-openai-api-key
+export PULLPOET_PROVIDER_BASE_URL=https://api.openai.com  # optional
+export PULLPOET_CLICKUP_PAT=pk_123456789_ABCDEFGHIJKLMNOPQRSTUVWXYZ  # optional
+
+# Now run with minimal flags
+pullpoet --target main
+
+# Environment variables + CLI flags (CLI flags take precedence)
+pullpoet --target main --model gpt-4  # Uses gpt-4 instead of env var
+```
+
+**Supported Environment Variables:**
+
+- `PULLPOET_PROVIDER` - AI provider (`openai`, `ollama`, `gemini`, `openwebui`)
+- `PULLPOET_MODEL` - AI model name
+- `PULLPOET_API_KEY` - API key for OpenAI/Gemini/OpenWebUI
+- `PULLPOET_PROVIDER_BASE_URL` - Base URL for AI provider
+- `PULLPOET_CLICKUP_PAT` - ClickUp Personal Access Token
+
+**Priority Order:** CLI flags > Environment variables > Default values
+
 ### Docker Usage 🐳
 
 You can run PullPoet directly using Docker without installing it locally:
@@ -111,6 +172,8 @@ docker run --rm -v $(pwd):/app erkineren/pullpoet \
 
 ### Basic Usage
 
+**Traditional Usage (Manual Parameters):**
+
 ```bash
 pullpoet \
   --repo https://github.com/example/repo.git \
@@ -119,6 +182,31 @@ pullpoet \
   --provider openai \
   --model gpt-3.5-turbo \
   --api-key your-openai-api-key
+```
+
+**Smart Usage (Auto-Detection + Environment Variables):**
+
+```bash
+# Set environment variables once
+export PULLPOET_PROVIDER=openai
+export PULLPOET_MODEL=gpt-3.5-turbo
+export PULLPOET_API_KEY=your-openai-api-key
+
+# Run from within your git repository
+cd /path/to/your/repo
+pullpoet --target main  # Auto-detects repo URL and current branch
+```
+
+**Minimal Usage (Maximum Auto-Detection):**
+
+```bash
+# If target branch is default branch (main/master)
+export PULLPOET_PROVIDER=openai
+export PULLPOET_MODEL=gpt-3.5-turbo
+export PULLPOET_API_KEY=your-openai-api-key
+
+cd /path/to/your/repo
+pullpoet  # Auto-detects everything!
 ```
 
 ### Quick Start with Gemini (Recommended)
@@ -245,21 +333,27 @@ pullpoet \
 
 ## Configuration Options
 
-| Flag                  | Description                                                                          | Required                          | Example                                                     |
-| --------------------- | ------------------------------------------------------------------------------------ | --------------------------------- | ----------------------------------------------------------- |
-| `--repo`              | Git repository URL                                                                   | Yes                               | `https://github.com/example/repo.git`                       |
-| `--source`            | Source branch name                                                                   | Yes                               | `feature/new-feature`                                       |
-| `--target`            | Target branch name                                                                   | Yes                               | `main`                                                      |
-| `--description`       | Optional issue/task description from ClickUp, Jira, etc.                             | No                                | `"JIRA-123: Add user authentication feature"`               |
-| `--provider`          | AI provider (`openai`, `ollama`, `gemini`, or `openwebui`)                           | Yes                               | `openai`                                                    |
-| `--model`             | AI model to use                                                                      | Yes                               | `gpt-3.5-turbo`, `llama2`, `gemini-2.5-flash-preview-05-20` |
-| `--api-key`           | OpenAI, Gemini, or OpenWebUI API key                                                 | Yes (for OpenAI/Gemini/OpenWebUI) | `sk-...` or `AIza...`                                       |
-| `--provider-base-url` | Base URL for AI provider (required for Ollama/OpenWebUI, optional for OpenAI/Gemini) | Yes (for Ollama/OpenWebUI)        | `https://user:pass@host:port` or `http://localhost:3000`    |
-| `--system-prompt`     | Custom system prompt file path to override default                                   | No                                | `/path/to/custom-prompt.md`                                 |
-| `--clickup-pat`       | ClickUp Personal Access Token                                                        | No                                | `pk_123456789_ABCDEFGHIJKLMNOPQRSTUVWXYZ`                   |
-| `--clickup-task-id`   | ClickUp Task ID to fetch description from                                            | No                                | `86c2dbq35`                                                 |
-| `--fast`              | Use fast native git commands                                                         | No                                | `--fast`                                                    |
-| `--output`            | Output file path                                                                     | No                                | `output.md`                                                 |
+| Flag                  | Description                                                                          | Required                          | Environment Variable         | Example                                                     |
+| --------------------- | ------------------------------------------------------------------------------------ | --------------------------------- | ---------------------------- | ----------------------------------------------------------- |
+| `--repo`              | Git repository URL (auto-detected if running in git repo)                            | No\*                              | N/A                          | `https://github.com/example/repo.git`                       |
+| `--source`            | Source branch name (auto-detected as current branch)                                 | No\*                              | N/A                          | `feature/new-feature`                                       |
+| `--target`            | Target branch name (auto-detected as default branch)                                 | No\*                              | N/A                          | `main`                                                      |
+| `--description`       | Optional issue/task description from ClickUp, Jira, etc.                             | No                                | N/A                          | `"JIRA-123: Add user authentication feature"`               |
+| `--provider`          | AI provider (`openai`, `ollama`, `gemini`, or `openwebui`)                           | Yes\*\*                           | `PULLPOET_PROVIDER`          | `openai`                                                    |
+| `--model`             | AI model to use                                                                      | Yes\*\*                           | `PULLPOET_MODEL`             | `gpt-3.5-turbo`, `llama2`, `gemini-2.5-flash-preview-05-20` |
+| `--api-key`           | OpenAI, Gemini, or OpenWebUI API key                                                 | Yes (for OpenAI/Gemini/OpenWebUI) | `PULLPOET_API_KEY`           | `sk-...` or `AIza...`                                       |
+| `--provider-base-url` | Base URL for AI provider (required for Ollama/OpenWebUI, optional for OpenAI/Gemini) | Yes (for Ollama/OpenWebUI)        | `PULLPOET_PROVIDER_BASE_URL` | `https://user:pass@host:port` or `http://localhost:3000`    |
+| `--system-prompt`     | Custom system prompt file path to override default                                   | No                                | N/A                          | `/path/to/custom-prompt.md`                                 |
+| `--clickup-pat`       | ClickUp Personal Access Token                                                        | No                                | `PULLPOET_CLICKUP_PAT`       | `pk_123456789_ABCDEFGHIJKLMNOPQRSTUVWXYZ`                   |
+| `--clickup-task-id`   | ClickUp Task ID to fetch description from                                            | No                                | N/A\*\*\*                    | `86c2dbq35`                                                 |
+| `--fast`              | Use fast native git commands                                                         | No                                | N/A                          | `--fast`                                                    |
+| `--output`            | Output file path                                                                     | No                                | N/A                          | `output.md`                                                 |
+
+**Notes:**
+
+- `*` Auto-detected when running from within a git repository
+- `**` Required unless set via environment variable
+- `***` Task ID is not supported via environment variable as it's typically unique per PR
 
 ## Custom System Prompts
 
@@ -574,6 +668,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Recent Updates
 
+- **🔍 Auto-Detection Support**: Automatically detects git repository URL, current branch, and default branch when running from within a git repository
+- **🌍 Environment Variables**: Full support for configuration via environment variables (`PULLPOET_PROVIDER`, `PULLPOET_MODEL`, etc.)
+- **🔑 SSH & Private Repository Support**: Enhanced support for private repositories using SSH authentication
+- **⚡ Simplified Usage**: Minimal command line usage with smart defaults and auto-detection
 - **🆕 OpenWebUI Support**: Added full support for OpenWebUI as a unified LLM provider interface
 - **🔧 Unified Provider URLs**: Replaced provider-specific URL flags with a single `--provider-base-url` parameter
 - **⚡ Default URLs**: Added default URLs for all providers (OpenAI: `https://api.openai.com`, Ollama: `http://localhost:11434`, OpenWebUI: `http://localhost:3000`)
