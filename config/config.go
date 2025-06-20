@@ -80,9 +80,9 @@ func Validate(cfg *Config) error {
 		}
 	}
 
-	// ClickUp validation: both PAT and task ID must be provided together
-	if (cfg.ClickUpPAT != "" && cfg.ClickUpTaskID == "") || (cfg.ClickUpPAT == "" && cfg.ClickUpTaskID != "") {
-		return fmt.Errorf("both ClickUp PAT and task ID must be provided together (PAT can be set via --clickup-pat flag or PULLPOET_CLICKUP_PAT environment variable, task ID must be provided via --clickup-task-id flag)")
+	// ClickUp validation: task ID requires PAT, but PAT can exist without task ID
+	if cfg.ClickUpTaskID != "" && cfg.ClickUpPAT == "" {
+		return fmt.Errorf("ClickUp PAT is required when task ID is provided (PAT can be set via --clickup-pat flag or PULLPOET_CLICKUP_PAT environment variable)")
 	}
 
 	return nil
