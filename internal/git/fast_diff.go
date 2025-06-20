@@ -265,3 +265,13 @@ func (c *FastClient) getCommitsBetweenBranchesFast(tempDir, sourceBranch, target
 
 	return commits, nil
 }
+
+// GetStagedDiff gets the diff of staged changes (git add'd files)
+func (c *FastClient) GetStagedDiff() (string, error) {
+	cmd := exec.Command("git", "diff", "--cached")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get staged diff: %w", err)
+	}
+	return string(output), nil
+}

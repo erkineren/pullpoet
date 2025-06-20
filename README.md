@@ -24,6 +24,7 @@ A Go CLI tool that generates AI-powered pull request titles and descriptions by 
 - **📋 Structured Content**: Problem statements, technical changes, acceptance criteria, and testing notes
 - **💾 File Output**: Save generated PR descriptions to markdown files
 - **🔧 Flexible Options**: Configurable AI providers, models, and output formats
+- **🔍 Preview Mode**: Preview staged changes before committing with AI-generated commit messages
 
 ## Installation
 
@@ -172,6 +173,7 @@ export PULLPOET_MODEL=gpt-3.5-turbo
 export PULLPOET_API_KEY=your-openai-api-key
 export PULLPOET_PROVIDER_BASE_URL=https://api.openai.com  # optional
 export PULLPOET_CLICKUP_PAT=pk_123456789_ABCDEFGHIJKLMNOPQRSTUVWXYZ  # optional
+export PULLPOET_LANGUAGE=en  # added
 
 # Now run with minimal flags
 pullpoet --target main
@@ -189,6 +191,7 @@ $env:PULLPOET_MODEL="gpt-3.5-turbo"
 $env:PULLPOET_API_KEY="your-openai-api-key"
 $env:PULLPOET_PROVIDER_BASE_URL="https://api.openai.com"  # optional
 $env:PULLPOET_CLICKUP_PAT="pk_123456789_ABCDEFGHIJKLMNOPQRSTUVWXYZ"  # optional
+$env:PULLPOET_LANGUAGE="en"  # added
 
 # Now run with minimal flags
 pullpoet --target main
@@ -203,6 +206,7 @@ set PULLPOET_MODEL=gpt-3.5-turbo
 set PULLPOET_API_KEY=your-openai-api-key
 set PULLPOET_PROVIDER_BASE_URL=https://api.openai.com
 set PULLPOET_CLICKUP_PAT=pk_123456789_ABCDEFGHIJKLMNOPQRSTUVWXYZ
+set PULLPOET_LANGUAGE=en
 
 # Now run with minimal flags
 pullpoet --target main
@@ -215,6 +219,7 @@ pullpoet --target main
 - `PULLPOET_API_KEY` - API key for OpenAI/Gemini/OpenWebUI
 - `PULLPOET_PROVIDER_BASE_URL` - Base URL for AI provider
 - `PULLPOET_CLICKUP_PAT` - ClickUp Personal Access Token
+- `PULLPOET_LANGUAGE` - Language for generated PR descriptions (default: en)
 
 **Priority Order:** CLI flags > Environment variables > Default values
 
@@ -235,6 +240,7 @@ chmod +x pullpoet-docker
 export PULLPOET_PROVIDER=gemini
 export PULLPOET_MODEL=gemini-2.5-flash-preview-05-20
 export PULLPOET_API_KEY=your-gemini-api-key
+export PULLPOET_LANGUAGE=en
 
 # Run from within your git repository - auto-detects everything!
 cd /path/to/your/git/repo
@@ -260,6 +266,7 @@ docker run --rm \
   -e PULLPOET_PROVIDER=gemini \
   -e PULLPOET_MODEL=gemini-2.5-flash-preview-05-20 \
   -e PULLPOET_API_KEY=your-gemini-api-key \
+  -e PULLPOET_LANGUAGE=en \
   erkineren/pullpoet
 
 # Option B: Manual parameters (no auto-detection)
@@ -269,7 +276,8 @@ docker run --rm erkineren/pullpoet \
   --target main \
   --provider gemini \
   --model gemini-2.5-flash-preview-05-20 \
-  --api-key your-gemini-api-key
+  --api-key your-gemini-api-key \
+  --language en
 
 # Option C: Save output to file
 docker run --rm \
@@ -278,6 +286,7 @@ docker run --rm \
   -e PULLPOET_PROVIDER=gemini \
   -e PULLPOET_MODEL=gemini-2.5-flash-preview-05-20 \
   -e PULLPOET_API_KEY=your-gemini-api-key \
+  -e PULLPOET_LANGUAGE=en \
   erkineren/pullpoet \
   --output pr-description.md
 ```
@@ -306,6 +315,7 @@ docker run --rm erkineren/pullpoet
 docker run --rm \
   -e PULLPOET_PROVIDER=gemini \
   -e PULLPOET_API_KEY=your-key \
+  -e PULLPOET_LANGUAGE=en \
   erkineren/pullpoet
 ```
 
@@ -330,6 +340,7 @@ pullpoet \
 export PULLPOET_PROVIDER=openai
 export PULLPOET_MODEL=gpt-3.5-turbo
 export PULLPOET_API_KEY=your-openai-api-key
+export PULLPOET_LANGUAGE=en
 
 # Run from within your git repository
 cd /path/to/your/repo
@@ -343,6 +354,7 @@ pullpoet --target main  # Auto-detects repo URL and current branch
 export PULLPOET_PROVIDER=openai
 export PULLPOET_MODEL=gpt-3.5-turbo
 export PULLPOET_API_KEY=your-openai-api-key
+export PULLPOET_LANGUAGE=en
 
 cd /path/to/your/repo
 pullpoet  # Auto-detects everything!
@@ -399,6 +411,210 @@ pullpoet \
   --api-key your-openwebui-api-key \
   --description "Implement secure user authentication with JWT tokens"
 ```
+
+### Multi-Language Support 🌍
+
+PullPoet supports generating PR descriptions in multiple languages. You can specify the language using the `--language` flag or the `PULLPOET_LANGUAGE` environment variable.
+
+**Supported Languages:**
+
+**European Languages:**
+
+- `en` - English (default)
+- `tr` - Turkish
+- `es` - Spanish
+- `fr` - French
+- `de` - German
+- `it` - Italian
+- `pt` - Portuguese
+- `nl` - Dutch
+- `sv` - Swedish
+- `no` - Norwegian
+- `da` - Danish
+- `fi` - Finnish
+- `pl` - Polish
+- `cs` - Czech
+- `sk` - Slovak
+- `hu` - Hungarian
+- `ro` - Romanian
+- `bg` - Bulgarian
+- `hr` - Croatian
+- `sl` - Slovenian
+- `et` - Estonian
+- `lv` - Latvian
+- `lt` - Lithuanian
+- `mt` - Maltese
+- `ga` - Irish
+- `cy` - Welsh
+- `is` - Icelandic
+- `mk` - Macedonian
+- `sq` - Albanian
+- `sr` - Serbian
+- `uk` - Ukrainian
+- `be` - Belarusian
+
+**Asian Languages:**
+
+- `ru` - Russian
+- `ja` - Japanese
+- `ko` - Korean
+- `zh` - Chinese
+
+**Other Languages:**
+
+- `ka` - Georgian
+- `hy` - Armenian
+- `az` - Azerbaijani
+- `kk` - Kazakh
+- `ky` - Kyrgyz
+- `uz` - Uzbek
+- `tg` - Tajik
+- `mn` - Mongolian
+
+**Usage Examples:**
+
+```bash
+# Generate PR description in Turkish
+pullpoet --language tr --provider openai --model gpt-3.5-turbo --api-key your-key
+
+# Generate PR description in French
+pullpoet --language fr --provider gemini --model gemini-2.5-flash-preview-05-20 --api-key your-key
+
+# Preview staged changes in German
+git add .
+pullpoet preview --language de --provider openai --model gpt-3.5-turbo --api-key your-key
+
+# Using environment variable
+export PULLPOET_LANGUAGE=es
+pullpoet --provider openai --model gpt-3.5-turbo --api-key your-key
+```
+
+**Language Instructions:**
+
+When you specify a language, PullPoet automatically adds language-specific instructions to the AI prompt. For example:
+
+- **Turkish**: "DİL TALİMATI: Lütfen tüm PR başlığını ve açıklamasını Türkçe olarak oluşturun..."
+- **French**: "INSTRUCTION DE LANGUE: Veuillez générer tout le titre et la description du PR en français..."
+- **German**: "SPRACHANWEISUNG: Bitte generieren Sie den gesamten PR-Titel und die Beschreibung auf Deutsch..."
+
+**Note:** Code examples and file names remain in English for consistency, but all descriptions, titles, and technical explanations are generated in the specified language.
+
+### Preview Changes Before Committing 🔍
+
+PullPoet can analyze staged changes and generate a preview of what your commit message and description would look like. This is perfect for reviewing changes before committing.
+
+**Basic Preview Usage:**
+
+```bash
+# Stage your changes first
+git add .
+
+# Preview staged changes
+pullpoet preview --provider openai --model gpt-3.5-turbo --api-key your-key
+
+# Or with environment variables
+export PULLPOET_PROVIDER=openai
+export PULLPOET_MODEL=gpt-3.5-turbo
+export PULLPOET_API_KEY=your-key
+export PULLPOET_LANGUAGE=en
+
+git add .
+pullpoet preview
+```
+
+**Preview with ClickUp Integration:**
+
+```bash
+# Stage changes
+git add .
+
+# Preview with ClickUp task context
+pullpoet preview \
+  --provider openai \
+  --model gpt-3.5-turbo \
+  --api-key your-key \
+  --clickup-pat your-clickup-pat \
+  --clickup-task-id abc123
+```
+
+**Save Preview to File:**
+
+```bash
+git add .
+pullpoet preview \
+  --provider openai \
+  --model gpt-3.5-turbo \
+  --api-key your-key \
+  --output commit-preview.md
+```
+
+**Preview Workflow:**
+
+1. **Make your changes** in your code
+2. **Stage changes** with `git add .` or `git add <files>`
+3. **Preview commit** with `pullpoet preview`
+4. **Review the output** - suggested commit title and description
+5. **Commit with the suggested message** or adjust as needed
+
+**Example Output:**
+
+```
+🔍 Starting PullPoet Preview Mode...
+🔍 Auto-detecting git repository information...
+✅ Auto-detected repository: https://github.com/example/repo.git
+✅ Auto-detected source branch: feature/user-auth
+✅ Auto-detected target branch (default branch): main
+📋 Validating configuration...
+✅ Configuration validated - Provider: openai, Model: gpt-3.5-turbo
+📊 Analyzing staged changes...
+✅ Found staged changes (1,234 characters)
+🤖 Initializing openai AI client with model 'gpt-3.5-turbo'...
+✅ AI client initialized successfully
+💭 Building prompt and sending to AI...
+📝 Using default embedded system prompt
+✅ AI response received and parsed successfully
+
+════════════════════════════════════════════════════════════════
+🔍 Preview of Changes (Staged)
+════════════════════════════════════════════════════════════════
+
+📋 **Suggested Commit Title:**
+feat: implement user authentication with JWT tokens
+
+────────────────────────────────────────────────────────────────
+
+📝 **Suggested Commit Description:**
+This commit implements a complete user authentication system with JWT tokens.
+
+## 🔧 Technical Changes
+- Added JWT token generation and validation
+- Implemented user login/logout endpoints
+- Added password hashing with bcrypt
+- Created user model with proper validation
+
+## 🧪 Testing
+- Added unit tests for authentication service
+- Added integration tests for login/logout flow
+- Tested with various password strengths
+
+## 📋 Acceptance Criteria
+- [x] Users can login with email/password
+- [x] JWT tokens are generated and validated
+- [x] Passwords are securely hashed
+- [x] Logout invalidates tokens
+
+════════════════════════════════════════════════════════════════
+✅ Preview generated successfully!
+💡 You can now use this as your commit message or adjust as needed.
+```
+
+**Benefits of Preview Mode:**
+
+- ✅ **Review before committing** - See what your commit will look like
+- ✅ **Consistent commit messages** - AI generates professional descriptions
+- ✅ **No accidental commits** - Preview without actually committing
+- ✅ **Better documentation** - Detailed descriptions for future reference
+- ✅ **Team collaboration** - Clear commit messages for code reviews
 
 ### Using Google Gemini
 
@@ -472,21 +688,22 @@ pullpoet \
 
 ## Configuration Options
 
-| Flag                  | Description                                                                          | Required                          | Environment Variable         | Example                                                     |
-| --------------------- | ------------------------------------------------------------------------------------ | --------------------------------- | ---------------------------- | ----------------------------------------------------------- |
-| `--repo`              | Git repository URL (auto-detected if running in git repo)                            | No\*                              | N/A                          | `https://github.com/example/repo.git`                       |
-| `--source`            | Source branch name (auto-detected as current branch)                                 | No\*                              | N/A                          | `feature/new-feature`                                       |
-| `--target`            | Target branch name (auto-detected as default branch)                                 | No\*                              | N/A                          | `main`                                                      |
-| `--description`       | Optional issue/task description from ClickUp, Jira, etc.                             | No                                | N/A                          | `"JIRA-123: Add user authentication feature"`               |
-| `--provider`          | AI provider (`openai`, `ollama`, `gemini`, or `openwebui`)                           | Yes\*\*                           | `PULLPOET_PROVIDER`          | `openai`                                                    |
-| `--model`             | AI model to use                                                                      | Yes\*\*                           | `PULLPOET_MODEL`             | `gpt-3.5-turbo`, `llama2`, `gemini-2.5-flash-preview-05-20` |
-| `--api-key`           | OpenAI, Gemini, or OpenWebUI API key                                                 | Yes (for OpenAI/Gemini/OpenWebUI) | `PULLPOET_API_KEY`           | `sk-...` or `AIza...`                                       |
-| `--provider-base-url` | Base URL for AI provider (required for Ollama/OpenWebUI, optional for OpenAI/Gemini) | Yes (for Ollama/OpenWebUI)        | `PULLPOET_PROVIDER_BASE_URL` | `https://user:pass@host:port` or `http://localhost:3000`    |
-| `--system-prompt`     | Custom system prompt file path to override default                                   | No                                | N/A                          | `/path/to/custom-prompt.md`                                 |
-| `--clickup-pat`       | ClickUp Personal Access Token                                                        | No                                | `PULLPOET_CLICKUP_PAT`       | `pk_123456789_ABCDEFGHIJKLMNOPQRSTUVWXYZ`                   |
-| `--clickup-task-id`   | ClickUp Task ID to fetch description from                                            | No                                | N/A\*\*\*                    | `86c2dbq35`                                                 |
-| `--fast`              | Use fast native git commands                                                         | No                                | N/A                          | `--fast`                                                    |
-| `--output`            | Output file path                                                                     | No                                | N/A                          | `output.md`                                                 |
+| Flag                  | Description                                                                          | Required                          | Environment Variable         | Example                                                                                                                                                                                                                                                                |
+| --------------------- | ------------------------------------------------------------------------------------ | --------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--repo`              | Git repository URL (auto-detected if running in git repo)                            | No\*                              | N/A                          | `https://github.com/example/repo.git`                                                                                                                                                                                                                                  |
+| `--source`            | Source branch name (auto-detected as current branch)                                 | No\*                              | N/A                          | `feature/new-feature`                                                                                                                                                                                                                                                  |
+| `--target`            | Target branch name (auto-detected as default branch)                                 | No\*                              | N/A                          | `main`                                                                                                                                                                                                                                                                 |
+| `--description`       | Optional issue/task description from ClickUp, Jira, etc.                             | No                                | N/A                          | `"JIRA-123: Add user authentication feature"`                                                                                                                                                                                                                          |
+| `--provider`          | AI provider (`openai`, `ollama`, `gemini`, or `openwebui`)                           | Yes\*\*                           | `PULLPOET_PROVIDER`          | `openai`                                                                                                                                                                                                                                                               |
+| `--model`             | AI model to use                                                                      | Yes\*\*                           | `PULLPOET_MODEL`             | `gpt-3.5-turbo`, `llama2`, `gemini-2.5-flash-preview-05-20`                                                                                                                                                                                                            |
+| `--api-key`           | OpenAI, Gemini, or OpenWebUI API key                                                 | Yes (for OpenAI/Gemini/OpenWebUI) | `PULLPOET_API_KEY`           | `sk-...` or `AIza...`                                                                                                                                                                                                                                                  |
+| `--provider-base-url` | Base URL for AI provider (required for Ollama/OpenWebUI, optional for OpenAI/Gemini) | Yes (for Ollama/OpenWebUI)        | `PULLPOET_PROVIDER_BASE_URL` | `https://user:pass@host:port` or `http://localhost:3000`                                                                                                                                                                                                               |
+| `--system-prompt`     | Custom system prompt file path to override default                                   | No                                | N/A                          | `/path/to/custom-prompt.md`                                                                                                                                                                                                                                            |
+| `--clickup-pat`       | ClickUp Personal Access Token                                                        | No                                | `PULLPOET_CLICKUP_PAT`       | `pk_123456789_ABCDEFGHIJKLMNOPQRSTUVWXYZ`                                                                                                                                                                                                                              |
+| `--clickup-task-id`   | ClickUp Task ID to fetch description from                                            | No                                | N/A\*\*\*                    | `86c2dbq35`                                                                                                                                                                                                                                                            |
+| `--fast`              | Use fast native git commands                                                         | No                                | N/A                          | `--fast`                                                                                                                                                                                                                                                               |
+| `--output`            | Output file path                                                                     | No                                | N/A                          | `output.md`                                                                                                                                                                                                                                                            |
+| `--language`          | Language for generated PR descriptions (default: en)                                 | No                                | `PULLPOET_LANGUAGE`          | `en`, `tr`, `es`, `fr`, `de`, `it`, `pt`, `nl`, `sv`, `no`, `da`, `fi`, `pl`, `cs`, `sk`, `hu`, `ro`, `bg`, `hr`, `sl`, `et`, `lv`, `lt`, `mt`, `ga`, `cy`, `is`, `mk`, `sq`, `sr`, `uk`, `be`, `ru`, `ja`, `ko`, `zh`, `ka`, `hy`, `az`, `kk`, `ky`, `uz`, `tg`, `mn` |
 
 **Notes:**
 

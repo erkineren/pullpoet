@@ -496,3 +496,13 @@ func (c *Client) getCommitsBetweenBranches(repo *git.Repository, sourceHash, tar
 
 	return commits, nil
 }
+
+// GetStagedDiff gets the diff of staged changes (git add'd files)
+func (c *Client) GetStagedDiff() (string, error) {
+	cmd := exec.Command("git", "diff", "--cached")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get staged diff: %w", err)
+	}
+	return string(output), nil
+}

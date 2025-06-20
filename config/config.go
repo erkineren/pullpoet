@@ -16,6 +16,7 @@ type Config struct {
 	ProviderBaseURL string
 	Model           string
 	SystemPrompt    string
+	Language        string
 	// ClickUp integration fields
 	ClickUpPAT    string
 	ClickUpTaskID string

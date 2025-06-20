@@ -34,10 +34,10 @@ func NewGenerator(aiClient ai.Client, customPrompt string) *Generator {
 }
 
 // Generate creates a PR description based on the git diff and optional description
-func (g *Generator) Generate(gitResult *git.GitResult, issueContext, repoURL string) (*Result, error) {
+func (g *Generator) Generate(gitResult *git.GitResult, issueContext, repoURL, language string, addSignature bool) (*Result, error) {
 	fmt.Println("   📝 Building unified AI prompt...")
 
-	prompt, err := g.buildUnifiedPrompt(gitResult, issueContext, repoURL)
+	prompt, err := g.buildUnifiedPrompt(gitResult, issueContext, repoURL, language)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build prompt: %w", err)
 	}
@@ -56,8 +56,10 @@ func (g *Generator) Generate(gitResult *git.GitResult, issueContext, repoURL str
 	}
 	fmt.Println("   ✅ Response parsed successfully")
 
-	// Add pullpoet signature to the end of the PR body
-	result.Body = g.addPullpoetSignature(result.Body)
+	// Add pullpoet signature to the end of the PR body only if requested
+	if addSignature {
+		result.Body = g.addPullpoetSignature(result.Body)
+	}
 
 	return result, nil
 }
@@ -78,7 +80,7 @@ func (g *Generator) loadPromptTemplate() (string, error) {
 }
 
 // buildUnifiedPrompt constructs the prompt using the unified template
-func (g *Generator) buildUnifiedPrompt(gitResult *git.GitResult, issueContext, repoURL string) (string, error) {
+func (g *Generator) buildUnifiedPrompt(gitResult *git.GitResult, issueContext, repoURL, language string) (string, error) {
 	// Load the base prompt template
 	baseTemplate, err := g.loadPromptTemplate()
 	if err != nil {
@@ -86,6 +88,13 @@ func (g *Generator) buildUnifiedPrompt(gitResult *git.GitResult, issueContext, r
 	}
 
 	var promptBuilder strings.Builder
+
+	// Add language instruction if not English
+	if language != "" && language != "en" {
+		languageInstruction := g.getLanguageInstruction(language)
+		promptBuilder.WriteString(languageInstruction)
+		promptBuilder.WriteString("\n\n")
+	}
 
 	// Add the base template
 	promptBuilder.WriteString(baseTemplate)
@@ -112,6 +121,101 @@ func (g *Generator) buildUnifiedPrompt(gitResult *git.GitResult, issueContext, r
 	promptBuilder.WriteString("**Analyze the above information and create a professional PR description following the JSON format specified above.**")
 
 	return promptBuilder.String(), nil
+}
+
+// getLanguageInstruction returns the appropriate language instruction for the prompt
+func (g *Generator) getLanguageInstruction(language string) string {
+	switch language {
+	case "tr":
+		return "**DİL TALİMATI**: Lütfen tüm PR başlığını ve açıklamasını Türkçe olarak oluşturun. Teknik terimleri Türkçe karşılıklarıyla kullanın, ancak kod örnekleri ve dosya adları İngilizce kalabilir."
+	case "es":
+		return "**INSTRUCCIÓN DE IDIOMA**: Por favor, genera todo el título y descripción del PR en español. Usa términos técnicos en español cuando sea posible, pero los ejemplos de código y nombres de archivos pueden permanecer en inglés."
+	case "fr":
+		return "**INSTRUCTION DE LANGUE**: Veuillez générer tout le titre et la description du PR en français. Utilisez des termes techniques en français quand c'est possible, mais les exemples de code et noms de fichiers peuvent rester en anglais."
+	case "de":
+		return "**SPRACHANWEISUNG**: Bitte generieren Sie den gesamten PR-Titel und die Beschreibung auf Deutsch. Verwenden Sie technische Begriffe auf Deutsch, wenn möglich, aber Code-Beispiele und Dateinamen können auf Englisch bleiben."
+	case "it":
+		return "**ISTRUZIONE LINGUISTICA**: Per favore, genera tutto il titolo e la descrizione del PR in italiano. Usa termini tecnici in italiano quando possibile, ma gli esempi di codice e i nomi dei file possono rimanere in inglese."
+	case "pt":
+		return "**INSTRUÇÃO DE IDIOMA**: Por favor, gere todo o título e descrição do PR em português. Use termos técnicos em português quando possível, mas exemplos de código e nomes de arquivos podem permanecer em inglês."
+	case "ru":
+		return "**ЯЗЫКОВАЯ ИНСТРУКЦИЯ**: Пожалуйста, создайте весь заголовок и описание PR на русском языке. Используйте технические термины на русском языке, когда это возможно, но примеры кода и имена файлов могут остаться на английском языке."
+	case "ja":
+		return "**言語指示**: PRのタイトルと説明をすべて日本語で作成してください。可能な限り技術用語は日本語を使用してください。ただし、コード例とファイル名は英語のままにできます。"
+	case "ko":
+		return "**언어 지시사항**: PR 제목과 설명을 모두 한국어로 작성해 주세요. 가능한 한 기술 용어는 한국어를 사용하되, 코드 예제와 파일명은 영어로 유지할 수 있습니다."
+	case "zh":
+		return "**语言指示**: 请用中文创建所有PR标题和描述。尽可能使用中文技术术语，但代码示例和文件名可以保持英文。"
+	// European languages
+	case "nl":
+		return "**TAALINSTRUCTIE**: Genereer alstublieft de volledige PR-titel en beschrijving in het Nederlands. Gebruik technische termen in het Nederlands waar mogelijk, maar codevoorbeelden en bestandsnamen kunnen in het Engels blijven."
+	case "sv":
+		return "**SPRÅKINSTRUKTION**: Vänligen generera hela PR-titeln och beskrivningen på svenska. Använd tekniska termer på svenska när det är möjligt, men kodexempel och filnamn kan förbli på engelska."
+	case "no":
+		return "**SPRÅKINSTRUKSJON**: Vennligst generer hele PR-tittelen og beskrivelsen på norsk. Bruk tekniske termer på norsk når det er mulig, men kodeeksempler og filnavn kan forbli på engelsk."
+	case "da":
+		return "**SPROGINSTRUKTION**: Generer venligst hele PR-titlen og beskrivelsen på dansk. Brug tekniske termer på dansk når det er muligt, men kodeeksempler og filnavne kan forblive på engelsk."
+	case "fi":
+		return "**KIELIOHJE**: Generoi kaikki PR-otsikko ja kuvaus suomeksi. Käytä tekniset termit suomeksi kun mahdollista, mutta koodiesimerkit ja tiedostonimet voivat pysyä englanniksi."
+	case "pl":
+		return "**INSTRUKCJA JĘZYKOWA**: Proszę wygenerować cały tytuł i opis PR w języku polskim. Używaj terminów technicznych po polsku, gdy to możliwe, ale przykłady kodu i nazwy plików mogą pozostać w języku angielskim."
+	case "cs":
+		return "**JAZYKOVÁ INSTRUKCE**: Prosím, vygenerujte celý název a popis PR v češtině. Používejte technické termíny v češtině, když je to možné, ale příklady kódu a názvy souborů mohou zůstat v angličtině."
+	case "sk":
+		return "**JAZYKOVÁ INŠTRUKCIA**: Prosím, vygenerujte celý názov a popis PR v slovenčine. Používajte technické termíny v slovenčine, keď je to možné, ale príklady kódu a názvy súborov môžu zostať v angličtine."
+	case "hu":
+		return "**NYELVI UTASÍTÁS**: Kérjük, generálja a teljes PR címet és leírást magyar nyelven. Használjon technikai kifejezéseket magyarul, amikor lehetséges, de a kódpéldák és fájlnevek maradhatnak angolul."
+	case "ro":
+		return "**INSTRUCȚIUNE LINGVISTICĂ**: Vă rugăm să generați întregul titlu și descrierea PR în limba română. Folosiți termeni tehnici în română când este posibil, dar exemplele de cod și numele fișierelor pot rămâne în engleză."
+	case "bg":
+		return "**ЕЗИКОВА ИНСТРУКЦИЯ**: Моля, генерирайте целия PR заглавие и описание на български език. Използвайте технически термини на български, когато е възможно, но примерите за код и имената на файлове могат да останат на английски."
+	case "hr":
+		return "**JEZIČNA UPUTA**: Molimo generirajte cijeli PR naslov i opis na hrvatskom jeziku. Koristite tehničke termine na hrvatskom kada je moguće, ali primjeri koda i imena datoteka mogu ostati na engleskom."
+	case "sl":
+		return "**JEZIKOVNA NAVODILA**: Prosimo, generirajte celoten PR naslov in opis v slovenščini. Uporabite tehnične izraze v slovenščini, ko je mogoče, vendar lahko primeri kode in imena datotek ostanejo v angleščini."
+	case "et":
+		return "**KEELETUNNISTUS**: Palun genereerige kogu PR pealkiri ja kirjeldus eesti keeles. Kasutage tehnilisi termineid eesti keeles, kui võimalik, kuid koodinäited ja failinimed võivad jääda inglise keelde."
+	case "lv":
+		return "**VALODAS INSTRUKCIJA**: Lūdzu, ģenerējiet visu PR virsrakstu un aprakstu latviešu valodā. Izmantojiet tehniskos terminus latviešu valodā, kad iespējams, bet koda piemēri un failu nosaukumi var palikt angļu valodā."
+	case "lt":
+		return "**KALBOS INSTRUKCIJA**: Prašome sugeneruoti visą PR pavadinimą ir aprašymą lietuvių kalba. Naudokite techninius terminus lietuvių kalba, kai įmanoma, bet kodo pavyzdžiai ir failų pavadinimai gali likti anglų kalba."
+	case "mt":
+		return "**ISTRUZZJONI TAL-LINGWA**: Jekk jogħġbok, ġenera t-titlu kollu tal-PR u d-deskrizzjoni bil-Malti. Uża termini tekniċi bil-Malti meta possibbli, iżda eżempji ta' kodiċi u ismijiet ta' fajls jistgħu jibqgħu bl-Ingliż."
+	case "ga":
+		return "**TREORACHA TEANGA**: Cuir gach teideal PR agus cur síos ar fáil i nGaeilge, más é do thoil é. Úsáid téarmaí teicniúla i nGaeilge nuair is féidir, ach is féidir samplaí cód agus ainmneacha comhad a fhágáil i mBéarla."
+	case "cy":
+		return "**CYFARWYDDIAD IAITH**: Os gwelwch yn dda, cynhyrchwch yr holl deitl PR a'r disgrifiad yn y Gymraeg. Defnyddiwch dermau technegol yn y Gymraeg pan fo'n bosibl, ond gall enghreifftiau cod ac enwau ffeiliau aros yn Saesneg."
+	case "is":
+		return "**TUNGUMÁLA LEIÐBEININGAR**: Vinsamlegast búðu til allan PR titil og lýsingu á íslensku. Notaðu tæknilega hugtök á íslensku þegar mögulegt er, en kóðadæmi og skráarnöfn geta verið á ensku."
+	case "mk":
+		return "**ЈАЗИЧНА ИНСТРУКЦИЈА**: Ве молиме генерирајте го целиот PR наслов и опис на македонски јазик. Користете технички термини на македонски кога е можно, но примерите за код и имињата на датотеки можат да останат на англиски."
+	case "sq":
+		return "**UDHËZIM GJUHËSOR**: Ju lutemi gjeneroni të gjithë titullin dhe përshkrimin e PR në shqip. Përdorni terma teknike në shqip kur është e mundur, por shembujt e kodit dhe emrat e skedarëve mund të mbeten në anglisht."
+	case "sr":
+		return "**ЈЕЗИЧКА ИНСТРУКЦИЈА**: Молимо вас да генеришете цео PR наслов и опис на српском језику. Користите техничке термине на српском када је могуће, али примери кода и имена фајлова могу остати на енглеском."
+	case "uk":
+		return "**МОВНА ІНСТРУКЦІЯ**: Будь ласка, створіть весь заголовок та опис PR українською мовою. Використовуйте технічні терміни українською мовою, коли це можливо, але приклади коду та назви файлів можу залишитися англійською мовою."
+	case "be":
+		return "**МОЎНАЯ ІНСТРУКЦЫЯ**: Калі ласка, стварыце ўвесь загаловак і апісанне PR на беларускай мове. Выкарыстоўвайце тэхнічныя тэрміны на беларускай мове, калі гэта магчыма, але прыклады коду і назвы файлаў могуць застацца на англійскай мове."
+	case "ka":
+		return "**ენობრივი ინსტრუქცია**: გთხოვთ, შექმნათ მთელი PR სათაური და აღწერა ქართულ ენაზე. გამოიყენეთ ტექნიკური ტერმინები ქართულად, როცა შესაძლებელია, მაგრამ კოდის მაგალითები და ფაილების სახელები შეიძლება დარჩეს ინგლისურად."
+	case "hy":
+		return "**ԼԵԶՎԱԿԱՆ ՀԻՆՍՏՐՈՒԿՑԻԱ**: Խնդրում ենք ստեղծել ամբողջ PR վերնագիրը և նկարագրությունը հայերենով: Օգտագործեք տեխնիկական տերմիններ հայերենով, երբ հնարավոր է, բայց կոդի օրինակները և ֆայլերի անունները կարող են մնալ անգլերենով:"
+	case "az":
+		return "**DİL TƏLİMATI**: Zəhmət olmasa, bütün PR başlığını və təsvirini Azərbaycan dilində yaradın. Mümkün olduqda texniki terminləri Azərbaycan dilində istifadə edin, amma kod nümunələri və fayl adları İngilis dilində qala bilər."
+	case "kk":
+		return "**ТІЛ НҰСҚАУЫ**: Өтінемін, PR тақырыбы мен сипаттамасын қазақ тілінде жасаңыз. Мүмкін болған кезде техникалық терминдерді қазақ тілінде қолданыңыз, бірақ код мысалдары мен файл атаулары ағылшын тілінде қала алады."
+	case "ky":
+		return "**ТИЛ КОЛДОНМОСУ**: Өтүнөмүн, PR баш аталышын жана сүрөттөмөсүн кыргыз тилинде түзүңүз. Мүмкүн болгондо техникалык терминдерди кыргыз тилинде колдонуңуз, бирок код мисалдары жана файл аталыштары англис тилинде кала алат."
+	case "uz":
+		return "**TIL KO'RSATMALARI**: Iltimos, butun PR sarlavhasi va tavsifini o'zbek tilida yarating. Mumkin bo'lganda texnik terminlarni o'zbek tilida ishlating, lekin kod misollari va fayl nomlari ingliz tilida qolishi mumkin."
+	case "tg":
+		return "**ДАСТУРИ ЗАБОН**: Лутфан, унвони PR ва тавсифиро ба забони тоҷикӣ эҷод кунед. Вақте ки имконпазир аст, истилоҳоти техникӣро ба забони тоҷикӣ истифода баред, аммо мисолҳои код ва номҳои файлҳо метавонанд ба забони англисӣ бимонанд."
+	case "mn":
+		return "**ХЭЛНИЙ ЗААВАР**: Та бүх PR гарчиг болон тайлбарыг монгол хэл дээр үүсгэнэ үү. Боломжтой үед техникийн нэр томьёог монгол хэл дээр ашиглана уу, гэхдээ кодын жишээ болон файлын нэрүүд англи хэл дээр үлдэж болно."
+	default:
+		return fmt.Sprintf("**LANGUAGE INSTRUCTION**: Please generate all PR title and description in %s language. Use technical terms in %s when possible, but code examples and file names can remain in English.", language, language)
+	}
 }
 
 // buildContextSection creates the context section with issue and commit info
