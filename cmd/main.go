@@ -283,7 +283,7 @@ func run(cmd *cobra.Command, args []string) error {
 	// Fetch ClickUp task description if ClickUp credentials are provided
 	var finalDescription string
 	if cfg.ClickUpPAT != "" && cfg.ClickUpTaskID != "" {
-		fmt.Printf("📋 Fetching task description from ClickUp (Task ID: %s)...\n", cfg.ClickUpTaskID)
+		fmt.Printf("📋 Fetching task description and comments from ClickUp (Task ID: %s)...\n", cfg.ClickUpTaskID)
 		clickupClient := clickup.NewClient(cfg.ClickUpPAT)
 		task, err := clickupClient.GetTask(cfg.ClickUpTaskID)
 		if err != nil {
@@ -291,6 +291,20 @@ func run(cmd *cobra.Command, args []string) error {
 		}
 		finalDescription = task.FormatTaskDescription()
 		fmt.Printf("✅ ClickUp task fetched successfully: %s\n", task.Name)
+		if len(task.Comments) > 0 {
+			fmt.Printf("💬 Found %d comments for the task\n", len(task.Comments))
+
+			// Count total replies
+			totalReplies := 0
+			for _, comment := range task.Comments {
+				totalReplies += len(comment.Replies)
+			}
+			if totalReplies > 0 {
+				fmt.Printf("💬 Found %d replies in comments\n", totalReplies)
+			}
+		} else {
+			fmt.Println("💬 No comments found for the task")
+		}
 	} else {
 		finalDescription = cfg.Description
 		if finalDescription != "" {
@@ -446,7 +460,7 @@ func runPreview(cmd *cobra.Command, args []string) error {
 	// Fetch ClickUp task description if ClickUp credentials are provided
 	var finalDescription string
 	if cfg.ClickUpPAT != "" && cfg.ClickUpTaskID != "" {
-		fmt.Printf("📋 Fetching task description from ClickUp (Task ID: %s)...\n", cfg.ClickUpTaskID)
+		fmt.Printf("📋 Fetching task description and comments from ClickUp (Task ID: %s)...\n", cfg.ClickUpTaskID)
 		clickupClient := clickup.NewClient(cfg.ClickUpPAT)
 		task, err := clickupClient.GetTask(cfg.ClickUpTaskID)
 		if err != nil {
@@ -454,6 +468,20 @@ func runPreview(cmd *cobra.Command, args []string) error {
 		}
 		finalDescription = task.FormatTaskDescription()
 		fmt.Printf("✅ ClickUp task fetched successfully: %s\n", task.Name)
+		if len(task.Comments) > 0 {
+			fmt.Printf("💬 Found %d comments for the task\n", len(task.Comments))
+
+			// Count total replies
+			totalReplies := 0
+			for _, comment := range task.Comments {
+				totalReplies += len(comment.Replies)
+			}
+			if totalReplies > 0 {
+				fmt.Printf("💬 Found %d replies in comments\n", totalReplies)
+			}
+		} else {
+			fmt.Println("💬 No comments found for the task")
+		}
 	} else {
 		finalDescription = cfg.Description
 		if finalDescription != "" {
