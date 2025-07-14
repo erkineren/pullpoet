@@ -105,14 +105,46 @@ func (c *OpenWebUIClient) GenerateDescription(prompt string) (string, error) {
 
 	// Try to parse as JSON first
 	var response Response
-	if err := json.Unmarshal([]byte(content), &response); err != nil {
-		// If not JSON, treat as plain text and extract title/body
-		lines := strings.Split(strings.TrimSpace(content), "\n")
-		if len(lines) > 0 {
-			response.Title = strings.TrimSpace(lines[0])
-			if len(lines) > 1 {
-				response.Body = strings.TrimSpace(strings.Join(lines[1:], "\n"))
+
+	// First attempt: try to parse the entire content as JSON
+	if err := json.Unmarshal([]byte(content), &response); err == nil {
+		// Format the response
+		result := fmt.Sprintf("TITLE: %s\n\nBODY:\n%s", response.Title, response.Body)
+		return result, nil
+	}
+
+	// Second attempt: Look for JSON object within the content
+	jsonStart := strings.Index(content, "{")
+	jsonEnd := strings.LastIndex(content, "}")
+
+	if jsonStart >= 0 && jsonEnd > jsonStart {
+		jsonStr := content[jsonStart : jsonEnd+1]
+		if err := json.Unmarshal([]byte(jsonStr), &response); err == nil {
+			// Format the response
+			result := fmt.Sprintf("TITLE: %s\n\nBODY:\n%s", response.Title, response.Body)
+			return result, nil
+		}
+	}
+
+	// Third attempt: Look for JSON block with ```json markers
+	if jsonStart := strings.Index(content, "```json"); jsonStart >= 0 {
+		jsonStart += len("```json")
+		if jsonEnd := strings.Index(content[jsonStart:], "```"); jsonEnd >= 0 {
+			jsonStr := strings.TrimSpace(content[jsonStart : jsonStart+jsonEnd])
+			if err := json.Unmarshal([]byte(jsonStr), &response); err == nil {
+				// Format the response
+				result := fmt.Sprintf("TITLE: %s\n\nBODY:\n%s", response.Title, response.Body)
+				return result, nil
 			}
+		}
+	}
+
+	// Fallback: treat as plain text and extract title/body
+	lines := strings.Split(strings.TrimSpace(content), "\n")
+	if len(lines) > 0 {
+		response.Title = strings.TrimSpace(lines[0])
+		if len(lines) > 1 {
+			response.Body = strings.TrimSpace(strings.Join(lines[1:], "\n"))
 		}
 	}
 
