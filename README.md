@@ -25,6 +25,9 @@ A Go CLI tool that generates AI-powered pull request titles and descriptions by 
 - **💾 File Output**: Save generated PR descriptions to markdown files
 - **🔧 Flexible Options**: Configurable AI providers, models, and output formats
 - **🔍 Preview Mode**: Preview staged changes before committing with AI-generated commit messages
+- **📌 ClickUp Integration**: Automatically fetch task descriptions and comments from ClickUp
+- **🎯 Jira Integration**: Automatically fetch issue descriptions and comments from Jira
+- **📝 Multi-Task Support**: Process multiple ClickUp tasks or Jira issues in a single PR (comma-separated)
 
 ## Installation
 
@@ -219,6 +222,9 @@ pullpoet --target main
 - `PULLPOET_API_KEY` - API key for OpenAI/Gemini/OpenWebUI
 - `PULLPOET_PROVIDER_BASE_URL` - Base URL for AI provider
 - `PULLPOET_CLICKUP_PAT` - ClickUp Personal Access Token
+- `PULLPOET_JIRA_BASE_URL` - Jira base URL (e.g., https://yourcompany.atlassian.net)
+- `PULLPOET_JIRA_USERNAME` - Jira username/email
+- `PULLPOET_JIRA_API_TOKEN` - Jira API token
 - `PULLPOET_LANGUAGE` - Language for generated PR descriptions (default: en)
 
 **Priority Order:** CLI flags > Environment variables > Default values
@@ -242,9 +248,19 @@ export PULLPOET_MODEL=gemini-2.5-flash-preview-05-20
 export PULLPOET_API_KEY=your-gemini-api-key
 export PULLPOET_LANGUAGE=en
 
+# Optional: Set Jira credentials for issue fetching
+export PULLPOET_JIRA_BASE_URL=https://yourcompany.atlassian.net
+export PULLPOET_JIRA_USERNAME=your-email@company.com
+export PULLPOET_JIRA_API_TOKEN=your-jira-api-token
+
+# Optional: Set ClickUp credentials for task fetching
+export PULLPOET_CLICKUP_PAT=your-clickup-pat
+
 # Run from within your git repository - auto-detects everything!
 cd /path/to/your/git/repo
-./pullpoet-docker
+./pullpoet-docker --jira-task-id "HIP-1234,HIP-1250"  # Multiple Jira issues
+# or
+./pullpoet-docker --clickup-task-id "task1,task2"  # Multiple ClickUp tasks
 ```
 
 **What the wrapper script does:**
@@ -267,7 +283,11 @@ docker run --rm \
   -e PULLPOET_MODEL=gemini-2.5-flash-preview-05-20 \
   -e PULLPOET_API_KEY=your-gemini-api-key \
   -e PULLPOET_LANGUAGE=en \
-  erkineren/pullpoet
+  -e PULLPOET_JIRA_BASE_URL=https://yourcompany.atlassian.net \
+  -e PULLPOET_JIRA_USERNAME=your-email@company.com \
+  -e PULLPOET_JIRA_API_TOKEN=your-jira-token \
+  erkineren/pullpoet \
+  --jira-task-id "HIP-1234,HIP-1250"
 
 # Option B: Manual parameters (no auto-detection)
 docker run --rm erkineren/pullpoet \
@@ -528,13 +548,48 @@ pullpoet preview
 # Stage changes
 git add .
 
-# Preview with ClickUp task context
+# Preview with single ClickUp task context
 pullpoet preview \
   --provider openai \
   --model gpt-3.5-turbo \
   --api-key your-key \
   --clickup-pat your-clickup-pat \
   --clickup-task-id abc123
+
+# Preview with multiple ClickUp tasks
+pullpoet preview \
+  --provider openai \
+  --model gpt-3.5-turbo \
+  --api-key your-key \
+  --clickup-pat your-clickup-pat \
+  --clickup-task-id "task1,task2,task3"
+```
+
+**Preview with Jira Integration:**
+
+```bash
+# Stage changes
+git add .
+
+# Preview with single Jira issue context
+pullpoet preview \
+  --provider openai \
+  --model gpt-3.5-turbo \
+  --api-key your-key \
+  --jira-base-url https://yourcompany.atlassian.net \
+  --jira-username your-email@company.com \
+  --jira-api-token your-jira-token \
+  --jira-task-id HIP-1234
+
+# Preview with multiple Jira issues
+pullpoet preview \
+  --provider openai \
+  --model gpt-3.5-turbo \
+  --api-key your-key \
+  --jira-base-url https://yourcompany.atlassian.net \
+  --jira-username your-email@company.com \
+  --jira-api-token your-jira-token \
+  --jira-task-id "HIP-1234,HIP-1250,HIP-5545"
 ```
 
 **Save Preview to File:**
@@ -700,7 +755,11 @@ pullpoet \
 | `--provider-base-url` | Base URL for AI provider (required for Ollama/OpenWebUI, optional for OpenAI/Gemini) | Yes (for Ollama/OpenWebUI)        | `PULLPOET_PROVIDER_BASE_URL` | `https://user:pass@host:port` or `http://localhost:3000`                                                                                                                                                                                                               |
 | `--system-prompt`     | Custom system prompt file path to override default                                   | No                                | N/A                          | `/path/to/custom-prompt.md`                                                                                                                                                                                                                                            |
 | `--clickup-pat`       | ClickUp Personal Access Token                                                        | No                                | `PULLPOET_CLICKUP_PAT`       | `pk_123456789_ABCDEFGHIJKLMNOPQRSTUVWXYZ`                                                                                                                                                                                                                              |
-| `--clickup-task-id`   | ClickUp Task ID to fetch description from                                            | No                                | N/A\*\*\*                    | `86c2dbq35`                                                                                                                                                                                                                                                            |
+| `--clickup-task-id`   | ClickUp Task ID(s) - comma-separated for multiple tasks                              | No                                | N/A\*\*\*                    | `86c2dbq35` or `task1,task2,task3`                                                                                                                                                                                                                                     |
+| `--jira-base-url`     | Jira base URL                                                                        | No (Yes if using Jira)            | `PULLPOET_JIRA_BASE_URL`     | `https://yourcompany.atlassian.net`                                                                                                                                                                                                                                    |
+| `--jira-username`     | Jira username/email                                                                  | No (Yes if using Jira)            | `PULLPOET_JIRA_USERNAME`     | `user@company.com`                                                                                                                                                                                                                                                     |
+| `--jira-api-token`    | Jira API token                                                                       | No (Yes if using Jira)            | `PULLPOET_JIRA_API_TOKEN`    | `ATBBxxx...`                                                                                                                                                                                                                                                           |
+| `--jira-task-id`      | Jira issue key(s) - comma-separated for multiple issues                              | No                                | N/A\*\*\*                    | `HIP-1234` or `HIP-1234,HIP-1250,HIP-5545`                                                                                                                                                                                                                             |
 | `--fast`              | Use fast native git commands                                                         | No                                | N/A                          | `--fast`                                                                                                                                                                                                                                                               |
 | `--output`            | Output file path                                                                     | No                                | N/A                          | `output.md`                                                                                                                                                                                                                                                            |
 | `--language`          | Language for generated PR descriptions (default: en)                                 | No                                | `PULLPOET_LANGUAGE`          | `en`, `tr`, `es`, `fr`, `de`, `it`, `pt`, `nl`, `sv`, `no`, `da`, `fi`, `pl`, `cs`, `sk`, `hu`, `ro`, `bg`, `hr`, `sl`, `et`, `lv`, `lt`, `mt`, `ga`, `cy`, `is`, `mk`, `sq`, `sr`, `uk`, `be`, `ru`, `ja`, `ko`, `zh`, `ka`, `hy`, `az`, `kk`, `ky`, `uz`, `tg`, `mn` |
@@ -849,6 +908,8 @@ PullPoet supports automatic task description fetching from ClickUp using the Cli
 
 ### Usage
 
+**Single Task:**
+
 ```bash
 pullpoet \
   --repo https://github.com/example/repo.git \
@@ -861,15 +922,37 @@ pullpoet \
   --clickup-task-id 86c2dbq35
 ```
 
+**Multiple Tasks (comma-separated):**
+
+```bash
+pullpoet \
+  --repo https://github.com/example/repo.git \
+  --source feature/new-feature \
+  --target main \
+  --provider gemini \
+  --model gemini-2.5-flash-preview-05-20 \
+  --api-key your-gemini-api-key \
+  --clickup-pat pk_123456789_ABCDEFGHIJKLMNOPQRSTUVWXYZ \
+  --clickup-task-id "task1,task2,task3"
+```
+
 ### What Gets Fetched
 
-When you provide both ClickUp PAT and task ID, PullPoet automatically fetches:
+When you provide both ClickUp PAT and task ID(s), PullPoet automatically fetches:
 
 - **Task Name**: Used for context and PR title generation
 - **Task Description**: Full task description or text content
 - **Task Status**: Current status (e.g., "in progress", "back log")
 - **Creator**: Task creator information
 - **Task URL**: Direct link to the ClickUp task
+- **Comments**: All task comments with author information and timestamps
+- **Replies**: Nested replies to comments for complete discussion context
+
+**For multiple tasks:**
+- All tasks are fetched sequentially with progress tracking
+- Tasks are combined with proper formatting and separators
+- Each task maintains its own complete context (description, comments, replies)
+- The combined output is used for comprehensive PR generation
 
 The fetched information is formatted and used as the description input for AI analysis, providing rich context for generating relevant PR descriptions.
 
@@ -877,8 +960,10 @@ The fetched information is formatted and used as the description input for AI an
 
 - **No Manual Copy-Paste**: Eliminates the need to manually copy task descriptions
 - **Always Up-to-Date**: Fetches the latest task information
-- **Rich Context**: Includes task metadata for better AI analysis
+- **Rich Context**: Includes task metadata, comments, and replies for better AI analysis
+- **Multi-Task Support**: Process multiple related tasks in a single PR
 - **Standardized Format**: Consistent task information formatting
+- **Complete Discussion Context**: Includes all comments and their replies
 
 ### Error Handling
 
@@ -886,6 +971,119 @@ The fetched information is formatted and used as the description input for AI an
 - Task Not Found: Helpful error when task ID doesn't exist
 - Network Issues: Retry logic and timeout handling
 - Partial Data: Graceful handling when some task fields are empty
+
+## Jira Integration
+
+PullPoet supports automatic issue description fetching from Jira using the Jira REST API v3.
+
+### Setup
+
+1. **Get Jira API Token**:
+
+   - Log in to your Atlassian account: https://id.atlassian.com/manage-profile/security/api-tokens
+   - Click "Create API token"
+   - Give it a meaningful label (e.g., "PullPoet")
+   - Copy the generated token (keep it secure!)
+
+2. **Get Your Jira Information**:
+   - **Base URL**: Your Jira instance URL (e.g., `https://yourcompany.atlassian.net`)
+   - **Username**: Your Jira account email address
+   - **Issue Key**: The issue identifier (e.g., `HIP-1234`, `PROJ-456`)
+
+### Usage
+
+**Single Issue:**
+
+```bash
+pullpoet \
+  --repo https://github.com/example/repo.git \
+  --source feature/new-feature \
+  --target main \
+  --provider openai \
+  --model gpt-4 \
+  --api-key your-openai-api-key \
+  --jira-base-url https://yourcompany.atlassian.net \
+  --jira-username your-email@company.com \
+  --jira-api-token your-jira-api-token \
+  --jira-task-id HIP-1234
+```
+
+**Multiple Issues (comma-separated):**
+
+```bash
+pullpoet \
+  --repo https://github.com/example/repo.git \
+  --source feature/new-feature \
+  --target main \
+  --provider openai \
+  --model gpt-4 \
+  --api-key your-openai-api-key \
+  --jira-base-url https://yourcompany.atlassian.net \
+  --jira-username your-email@company.com \
+  --jira-api-token your-jira-api-token \
+  --jira-task-id "HIP-1234,HIP-1250,HIP-5545"
+```
+
+**Using Environment Variables:**
+
+```bash
+export PULLPOET_JIRA_BASE_URL="https://yourcompany.atlassian.net"
+export PULLPOET_JIRA_USERNAME="your-email@company.com"
+export PULLPOET_JIRA_API_TOKEN="your-jira-api-token"
+
+pullpoet \
+  --jira-task-id "HIP-1234,HIP-1250" \
+  --provider openai \
+  --model gpt-4
+```
+
+### What Gets Fetched
+
+When you provide Jira credentials and issue key(s), PullPoet automatically fetches:
+
+- **Issue Key**: The unique issue identifier (e.g., HIP-1234)
+- **Summary**: Issue title/summary
+- **Description**: Full issue description (supports Atlassian Document Format - ADF)
+- **Issue Type**: Type of the issue (e.g., Story, Bug, Task, Epic)
+- **Status**: Current issue status (e.g., In Progress, Done, To Do)
+- **Creator**: Issue creator information
+- **Reporter**: Issue reporter information
+- **Issue URL**: Direct link to the Jira issue
+- **Comments**: All issue comments with author information and timestamps
+
+**For multiple issues:**
+- All issues are fetched sequentially with progress tracking (`[1/3] Fetching issue: HIP-1234`)
+- Issues are combined with proper formatting and separators
+- Each issue maintains its own complete context (description, comments)
+- The combined output is used for comprehensive PR generation
+
+The fetched information is formatted and used as the description input for AI analysis, providing rich context for generating relevant PR descriptions.
+
+### Benefits
+
+- **No Manual Copy-Paste**: Eliminates the need to manually copy issue descriptions
+- **Always Up-to-Date**: Fetches the latest issue information from Jira
+- **Rich Context**: Includes issue metadata and comments for better AI analysis
+- **Multi-Issue Support**: Process multiple related issues in a single PR
+- **ADF Support**: Properly handles Jira's Atlassian Document Format
+- **Complete Discussion Context**: Includes all comments with author information
+- **Standardized Format**: Consistent issue information formatting
+
+### Error Handling
+
+- **Invalid Credentials**: Clear error message with authentication failure
+- **Issue Not Found**: Helpful error when issue key doesn't exist or you don't have access
+- **Network Issues**: Timeout handling (30 seconds default)
+- **Invalid Base URL**: Clear error for malformed Jira URLs
+- **API Rate Limits**: Graceful handling of rate limit responses
+- **Partial Data**: Handles cases where some issue fields are empty
+
+### Security Notes
+
+- **API Token**: Store your Jira API token securely using environment variables
+- **Basic Auth**: Uses HTTP Basic Authentication with username and API token
+- **HTTPS Only**: Always use HTTPS URLs for your Jira base URL
+- **Token Scope**: API tokens have the same permissions as your Jira user account
 
 ## Performance Optimization
 

@@ -10,6 +10,7 @@ import (
 	"pullpoet/internal/ai"
 	"pullpoet/internal/clickup"
 	"pullpoet/internal/git"
+	"pullpoet/internal/jira"
 	"pullpoet/internal/pr"
 
 	"github.com/spf13/cobra"
@@ -34,6 +35,11 @@ var (
 	// ClickUp integration variables
 	clickupPAT    string
 	clickupTaskID string
+	// Jira integration variables
+	jiraBaseURL  string
+	jiraUsername string
+	jiraAPIToken string
+	jiraTaskID   string
 )
 
 // Environment variable names
@@ -45,6 +51,10 @@ const (
 	EnvClickUpPAT      = "PULLPOET_CLICKUP_PAT"
 	EnvLanguage        = "PULLPOET_LANGUAGE"
 	// EnvClickUpTaskID   = "PULLPOET_CLICKUP_TASK_ID" // Removed - task ID should be provided per PR
+	EnvJiraBaseURL  = "PULLPOET_JIRA_BASE_URL"
+	EnvJiraUsername = "PULLPOET_JIRA_USERNAME"
+	EnvJiraAPIToken = "PULLPOET_JIRA_API_TOKEN"
+	// EnvJiraTaskID      = "PULLPOET_JIRA_TASK_ID" // Removed - task ID should be provided per PR
 )
 
 // getEnvOrDefault returns environment variable value or default if not set
@@ -111,6 +121,30 @@ func getLanguageFromEnvOrFlag() string {
 // 	return getEnvOrDefault(EnvClickUpTaskID, "")
 // }
 
+// getJiraBaseURLFromEnvOrFlag returns Jira base URL from environment or flag
+func getJiraBaseURLFromEnvOrFlag() string {
+	if jiraBaseURL != "" {
+		return jiraBaseURL
+	}
+	return getEnvOrDefault(EnvJiraBaseURL, "")
+}
+
+// getJiraUsernameFromEnvOrFlag returns Jira username from environment or flag
+func getJiraUsernameFromEnvOrFlag() string {
+	if jiraUsername != "" {
+		return jiraUsername
+	}
+	return getEnvOrDefault(EnvJiraUsername, "")
+}
+
+// getJiraAPITokenFromEnvOrFlag returns Jira API token from environment or flag
+func getJiraAPITokenFromEnvOrFlag() string {
+	if jiraAPIToken != "" {
+		return jiraAPIToken
+	}
+	return getEnvOrDefault(EnvJiraAPIToken, "")
+}
+
 var rootCmd = &cobra.Command{
 	Use:     "pullpoet",
 	Short:   "Generate AI-powered pull request descriptions",
@@ -143,7 +177,13 @@ func init() {
 
 	// ClickUp integration flags
 	rootCmd.Flags().StringVar(&clickupPAT, "clickup-pat", "", "ClickUp Personal Access Token (can also be set via PULLPOET_CLICKUP_PAT env var)")
-	rootCmd.Flags().StringVar(&clickupTaskID, "clickup-task-id", "", "ClickUp Task ID to fetch description from (must be provided via flag)")
+	rootCmd.Flags().StringVar(&clickupTaskID, "clickup-task-id", "", "ClickUp Task ID(s) to fetch description from, comma-separated for multiple tasks (e.g., 'task1,task2,task3')")
+
+	// Jira integration flags
+	rootCmd.Flags().StringVar(&jiraBaseURL, "jira-base-url", "", "Jira base URL (e.g., https://yourcompany.atlassian.net, can also be set via PULLPOET_JIRA_BASE_URL env var)")
+	rootCmd.Flags().StringVar(&jiraUsername, "jira-username", "", "Jira username/email (can also be set via PULLPOET_JIRA_USERNAME env var)")
+	rootCmd.Flags().StringVar(&jiraAPIToken, "jira-api-token", "", "Jira API token (can also be set via PULLPOET_JIRA_API_TOKEN env var)")
+	rootCmd.Flags().StringVar(&jiraTaskID, "jira-task-id", "", "Jira issue key(s) to fetch description from, comma-separated for multiple issues (e.g., 'HIP-1234,HIP-1250')")
 
 	// Preview command flags (inherit from root)
 	previewCmd.Flags().StringVar(&repo, "repo", "", "Git repository URL (auto-detected if not provided and running in git repo)")
@@ -161,7 +201,13 @@ func init() {
 
 	// ClickUp integration flags for preview
 	previewCmd.Flags().StringVar(&clickupPAT, "clickup-pat", "", "ClickUp Personal Access Token (can also be set via PULLPOET_CLICKUP_PAT env var)")
-	previewCmd.Flags().StringVar(&clickupTaskID, "clickup-task-id", "", "ClickUp Task ID to fetch description from (must be provided via flag)")
+	previewCmd.Flags().StringVar(&clickupTaskID, "clickup-task-id", "", "ClickUp Task ID(s) to fetch description from, comma-separated for multiple tasks (e.g., 'task1,task2,task3')")
+
+	// Jira integration flags for preview
+	previewCmd.Flags().StringVar(&jiraBaseURL, "jira-base-url", "", "Jira base URL (e.g., https://yourcompany.atlassian.net, can also be set via PULLPOET_JIRA_BASE_URL env var)")
+	previewCmd.Flags().StringVar(&jiraUsername, "jira-username", "", "Jira username/email (can also be set via PULLPOET_JIRA_USERNAME env var)")
+	previewCmd.Flags().StringVar(&jiraAPIToken, "jira-api-token", "", "Jira API token (can also be set via PULLPOET_JIRA_API_TOKEN env var)")
+	previewCmd.Flags().StringVar(&jiraTaskID, "jira-task-id", "", "Jira issue key(s) to fetch description from, comma-separated for multiple issues (e.g., 'HIP-1234,HIP-1250')")
 
 	// Set version template and enable -v shorthand
 	rootCmd.SetVersionTemplate("{{.Version}}\n")
@@ -171,6 +217,124 @@ func init() {
 	rootCmd.AddCommand(previewCmd)
 
 	// Flag validasyonunu kaldırdık, run fonksiyonunda manuel validasyon yapacağız
+}
+
+// fetchClickUpTasks fetches multiple ClickUp tasks and combines their descriptions
+func fetchClickUpTasks(pat, taskIDs string) (string, error) {
+	// Parse task IDs (comma-separated)
+	ids := strings.Split(taskIDs, ",")
+	var cleanIDs []string
+	for _, id := range ids {
+		trimmed := strings.TrimSpace(id)
+		if trimmed != "" {
+			cleanIDs = append(cleanIDs, trimmed)
+		}
+	}
+
+	if len(cleanIDs) == 0 {
+		return "", fmt.Errorf("no valid task IDs provided")
+	}
+
+	fmt.Printf("📋 Fetching %d task(s) from ClickUp...\n", len(cleanIDs))
+	clickupClient := clickup.NewClient(pat)
+
+	var descriptions []string
+	for i, taskID := range cleanIDs {
+		fmt.Printf("   [%d/%d] Fetching task: %s\n", i+1, len(cleanIDs), taskID)
+		task, err := clickupClient.GetTask(taskID)
+		if err != nil {
+			return "", fmt.Errorf("failed to fetch ClickUp task %s: %w", taskID, err)
+		}
+
+		descriptions = append(descriptions, task.FormatTaskDescription())
+		fmt.Printf("   ✅ Task fetched: %s\n", task.Name)
+
+		if len(task.Comments) > 0 {
+			totalReplies := 0
+			for _, comment := range task.Comments {
+				totalReplies += len(comment.Replies)
+			}
+			fmt.Printf("   💬 %d comments", len(task.Comments))
+			if totalReplies > 0 {
+				fmt.Printf(" (%d replies)", totalReplies)
+			}
+			fmt.Println()
+		}
+	}
+
+	// Combine all task descriptions
+	if len(descriptions) == 1 {
+		return descriptions[0], nil
+	}
+
+	var combined strings.Builder
+	combined.WriteString(fmt.Sprintf("**Multiple ClickUp Tasks (%d tasks)**\n\n", len(descriptions)))
+	combined.WriteString(strings.Repeat("=", 80) + "\n\n")
+
+	for i, desc := range descriptions {
+		combined.WriteString(fmt.Sprintf("### Task %d of %d\n\n", i+1, len(descriptions)))
+		combined.WriteString(desc)
+		if i < len(descriptions)-1 {
+			combined.WriteString("\n\n" + strings.Repeat("-", 80) + "\n\n")
+		}
+	}
+
+	return combined.String(), nil
+}
+
+// fetchJiraIssues fetches multiple Jira issues and combines their descriptions
+func fetchJiraIssues(baseURL, username, apiToken, issueKeys string) (string, error) {
+	// Parse issue keys (comma-separated)
+	keys := strings.Split(issueKeys, ",")
+	var cleanKeys []string
+	for _, key := range keys {
+		trimmed := strings.TrimSpace(key)
+		if trimmed != "" {
+			cleanKeys = append(cleanKeys, trimmed)
+		}
+	}
+
+	if len(cleanKeys) == 0 {
+		return "", fmt.Errorf("no valid issue keys provided")
+	}
+
+	fmt.Printf("📋 Fetching %d issue(s) from Jira...\n", len(cleanKeys))
+	jiraClient := jira.NewClient(baseURL, username, apiToken)
+
+	var descriptions []string
+	for i, issueKey := range cleanKeys {
+		fmt.Printf("   [%d/%d] Fetching issue: %s\n", i+1, len(cleanKeys), issueKey)
+		issue, err := jiraClient.GetIssue(issueKey)
+		if err != nil {
+			return "", fmt.Errorf("failed to fetch Jira issue %s: %w", issueKey, err)
+		}
+
+		descriptions = append(descriptions, issue.FormatIssueDescription())
+		fmt.Printf("   ✅ Issue fetched: %s\n", issue.Summary)
+
+		if len(issue.Comments) > 0 {
+			fmt.Printf("   💬 %d comments\n", len(issue.Comments))
+		}
+	}
+
+	// Combine all issue descriptions
+	if len(descriptions) == 1 {
+		return descriptions[0], nil
+	}
+
+	var combined strings.Builder
+	combined.WriteString(fmt.Sprintf("**Multiple Jira Issues (%d issues)**\n\n", len(descriptions)))
+	combined.WriteString(strings.Repeat("=", 80) + "\n\n")
+
+	for i, desc := range descriptions {
+		combined.WriteString(fmt.Sprintf("### Issue %d of %d\n\n", i+1, len(descriptions)))
+		combined.WriteString(desc)
+		if i < len(descriptions)-1 {
+			combined.WriteString("\n\n" + strings.Repeat("-", 80) + "\n\n")
+		}
+	}
+
+	return combined.String(), nil
 }
 
 // autoDetectGitInfo attempts to auto-detect git repository information
@@ -272,6 +436,10 @@ func run(cmd *cobra.Command, args []string) error {
 		SystemPrompt:    systemPrompt,
 		ClickUpPAT:      getClickUpPATFromEnvOrFlag(),
 		ClickUpTaskID:   clickupTaskID,
+		JiraBaseURL:     getJiraBaseURLFromEnvOrFlag(),
+		JiraUsername:    getJiraUsernameFromEnvOrFlag(),
+		JiraAPIToken:    getJiraAPITokenFromEnvOrFlag(),
+		JiraTaskID:      jiraTaskID,
 		Language:        getLanguageFromEnvOrFlag(),
 	}
 
@@ -280,31 +448,22 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Printf("✅ Configuration validated - Provider: %s, Model: %s\n", cfg.Provider, cfg.Model)
 
-	// Fetch ClickUp task description if ClickUp credentials are provided
+	// Fetch task description from ClickUp or Jira
 	var finalDescription string
 	if cfg.ClickUpPAT != "" && cfg.ClickUpTaskID != "" {
-		fmt.Printf("📋 Fetching task description and comments from ClickUp (Task ID: %s)...\n", cfg.ClickUpTaskID)
-		clickupClient := clickup.NewClient(cfg.ClickUpPAT)
-		task, err := clickupClient.GetTask(cfg.ClickUpTaskID)
+		var err error
+		finalDescription, err = fetchClickUpTasks(cfg.ClickUpPAT, cfg.ClickUpTaskID)
 		if err != nil {
-			return fmt.Errorf("failed to fetch ClickUp task: %w", err)
+			return err
 		}
-		finalDescription = task.FormatTaskDescription()
-		fmt.Printf("✅ ClickUp task fetched successfully: %s\n", task.Name)
-		if len(task.Comments) > 0 {
-			fmt.Printf("💬 Found %d comments for the task\n", len(task.Comments))
-
-			// Count total replies
-			totalReplies := 0
-			for _, comment := range task.Comments {
-				totalReplies += len(comment.Replies)
-			}
-			if totalReplies > 0 {
-				fmt.Printf("💬 Found %d replies in comments\n", totalReplies)
-			}
-		} else {
-			fmt.Println("💬 No comments found for the task")
+		fmt.Println("✅ All ClickUp tasks fetched successfully")
+	} else if cfg.JiraBaseURL != "" && cfg.JiraUsername != "" && cfg.JiraAPIToken != "" && cfg.JiraTaskID != "" {
+		var err error
+		finalDescription, err = fetchJiraIssues(cfg.JiraBaseURL, cfg.JiraUsername, cfg.JiraAPIToken, cfg.JiraTaskID)
+		if err != nil {
+			return err
 		}
+		fmt.Println("✅ All Jira issues fetched successfully")
 	} else {
 		finalDescription = cfg.Description
 		if finalDescription != "" {
@@ -449,6 +608,10 @@ func runPreview(cmd *cobra.Command, args []string) error {
 		SystemPrompt:    systemPrompt,
 		ClickUpPAT:      getClickUpPATFromEnvOrFlag(),
 		ClickUpTaskID:   clickupTaskID,
+		JiraBaseURL:     getJiraBaseURLFromEnvOrFlag(),
+		JiraUsername:    getJiraUsernameFromEnvOrFlag(),
+		JiraAPIToken:    getJiraAPITokenFromEnvOrFlag(),
+		JiraTaskID:      jiraTaskID,
 		Language:        getLanguageFromEnvOrFlag(),
 	}
 
@@ -457,31 +620,22 @@ func runPreview(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Printf("✅ Configuration validated - Provider: %s, Model: %s\n", cfg.Provider, cfg.Model)
 
-	// Fetch ClickUp task description if ClickUp credentials are provided
+	// Fetch task description from ClickUp or Jira
 	var finalDescription string
 	if cfg.ClickUpPAT != "" && cfg.ClickUpTaskID != "" {
-		fmt.Printf("📋 Fetching task description and comments from ClickUp (Task ID: %s)...\n", cfg.ClickUpTaskID)
-		clickupClient := clickup.NewClient(cfg.ClickUpPAT)
-		task, err := clickupClient.GetTask(cfg.ClickUpTaskID)
+		var err error
+		finalDescription, err = fetchClickUpTasks(cfg.ClickUpPAT, cfg.ClickUpTaskID)
 		if err != nil {
-			return fmt.Errorf("failed to fetch ClickUp task: %w", err)
+			return err
 		}
-		finalDescription = task.FormatTaskDescription()
-		fmt.Printf("✅ ClickUp task fetched successfully: %s\n", task.Name)
-		if len(task.Comments) > 0 {
-			fmt.Printf("💬 Found %d comments for the task\n", len(task.Comments))
-
-			// Count total replies
-			totalReplies := 0
-			for _, comment := range task.Comments {
-				totalReplies += len(comment.Replies)
-			}
-			if totalReplies > 0 {
-				fmt.Printf("💬 Found %d replies in comments\n", totalReplies)
-			}
-		} else {
-			fmt.Println("💬 No comments found for the task")
+		fmt.Println("✅ All ClickUp tasks fetched successfully")
+	} else if cfg.JiraBaseURL != "" && cfg.JiraUsername != "" && cfg.JiraAPIToken != "" && cfg.JiraTaskID != "" {
+		var err error
+		finalDescription, err = fetchJiraIssues(cfg.JiraBaseURL, cfg.JiraUsername, cfg.JiraAPIToken, cfg.JiraTaskID)
+		if err != nil {
+			return err
 		}
+		fmt.Println("✅ All Jira issues fetched successfully")
 	} else {
 		finalDescription = cfg.Description
 		if finalDescription != "" {

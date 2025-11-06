@@ -20,6 +20,11 @@ type Config struct {
 	// ClickUp integration fields
 	ClickUpPAT    string
 	ClickUpTaskID string
+	// Jira integration fields
+	JiraBaseURL  string
+	JiraUsername string
+	JiraAPIToken string
+	JiraTaskID   string
 }
 
 // GetProviderBaseURL returns the appropriate base URL for the provider
@@ -84,6 +89,24 @@ func Validate(cfg *Config) error {
 	// ClickUp validation: task ID requires PAT, but PAT can exist without task ID
 	if cfg.ClickUpTaskID != "" && cfg.ClickUpPAT == "" {
 		return fmt.Errorf("ClickUp PAT is required when task ID is provided (PAT can be set via --clickup-pat flag or PULLPOET_CLICKUP_PAT environment variable)")
+	}
+
+	// Jira validation: task ID requires all credentials
+	if cfg.JiraTaskID != "" {
+		if cfg.JiraBaseURL == "" {
+			return fmt.Errorf("Jira base URL is required when task ID is provided (can be set via --jira-base-url flag or PULLPOET_JIRA_BASE_URL environment variable)")
+		}
+		if cfg.JiraUsername == "" {
+			return fmt.Errorf("Jira username is required when task ID is provided (can be set via --jira-username flag or PULLPOET_JIRA_USERNAME environment variable)")
+		}
+		if cfg.JiraAPIToken == "" {
+			return fmt.Errorf("Jira API token is required when task ID is provided (can be set via --jira-api-token flag or PULLPOET_JIRA_API_TOKEN environment variable)")
+		}
+	}
+
+	// Cannot use both ClickUp and Jira task IDs at the same time
+	if cfg.ClickUpTaskID != "" && cfg.JiraTaskID != "" {
+		return fmt.Errorf("cannot use both ClickUp and Jira task IDs at the same time - please provide only one")
 	}
 
 	return nil
