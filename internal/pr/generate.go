@@ -304,6 +304,12 @@ func (g *Generator) parseResponse(response string) (*Result, error) {
 
 	response = strings.TrimSpace(response)
 
+	// Clean up markdown headers that might be before JSON blocks
+	// Some AI models return: # ```json instead of ```json
+	response = strings.ReplaceAll(response, "# ```json", "```json")
+	response = strings.ReplaceAll(response, "## ```json", "```json")
+	response = strings.ReplaceAll(response, "### ```json", "```json")
+
 	// Try to parse as JSON first (multiple methods)
 	var jsonResult struct {
 		Title string `json:"title"`
@@ -315,13 +321,15 @@ func (g *Generator) parseResponse(response string) (*Result, error) {
 		jsonStart += len("```json")
 		if jsonEnd := strings.Index(response[jsonStart:], "```"); jsonEnd >= 0 {
 			jsonStr := strings.TrimSpace(response[jsonStart : jsonStart+jsonEnd])
-			if err := json.Unmarshal([]byte(jsonStr), &jsonResult); err == nil {
+			err := json.Unmarshal([]byte(jsonStr), &jsonResult)
+			if err == nil {
 				fmt.Println("   ✅ Successfully parsed JSON from ```json block")
 				return &Result{
 					Title: cleanTitle(jsonResult.Title),
 					Body:  jsonResult.Body,
 				}, nil
 			}
+			fmt.Printf("   ⚠️  Found ```json block but JSON parsing failed: %v\n", err)
 		}
 	}
 
@@ -337,6 +345,13 @@ func (g *Generator) parseResponse(response string) (*Result, error) {
 				Title: cleanTitle(jsonResult.Title),
 				Body:  jsonResult.Body,
 			}, nil
+		} else {
+			fmt.Printf("   ⚠️  Found JSON-like structure but parsing failed: %v\n", err)
+			previewLen := 100
+			if len(jsonStr) < previewLen {
+				previewLen = len(jsonStr)
+			}
+			fmt.Printf("   📄 Attempted to parse: %s...\n", jsonStr[:previewLen])
 		}
 	}
 

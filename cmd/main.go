@@ -12,6 +12,7 @@ import (
 	"pullpoet/internal/git"
 	"pullpoet/internal/jira"
 	"pullpoet/internal/pr"
+	"pullpoet/internal/ui"
 
 	"github.com/spf13/cobra"
 )
@@ -160,6 +161,13 @@ var previewCmd = &cobra.Command{
 	RunE:  runPreview,
 }
 
+var initConfigCmd = &cobra.Command{
+	Use:   "init-config",
+	Short: "Generate example .pullpoet.yml configuration file",
+	Long:  `Creates an example .pullpoet.yml file in the current directory with all available configuration options.`,
+	RunE:  runInitConfig,
+}
+
 func init() {
 	// Root command flags
 	rootCmd.Flags().StringVar(&repo, "repo", "", "Git repository URL (auto-detected if not provided and running in git repo)")
@@ -213,8 +221,9 @@ func init() {
 	rootCmd.SetVersionTemplate("{{.Version}}\n")
 	rootCmd.Flags().BoolP("version", "v", false, "version for pullpoet")
 
-	// Add preview command to root
+	// Add subcommands to root
 	rootCmd.AddCommand(previewCmd)
+	rootCmd.AddCommand(initConfigCmd)
 
 	// Flag validasyonunu kaldırdık, run fonksiyonunda manuel validasyon yapacağız
 }
@@ -383,23 +392,90 @@ func run(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Println("🚀 Starting PullPoet...")
+	// Load configuration file
+	fileConfig, err := config.LoadConfigFile()
+	if err != nil {
+		fmt.Printf("⚠️  Warning: Failed to load config file: %v\n", err)
+		fileConfig = &config.FileConfig{UI: config.DefaultUIConfig()}
+	}
+
+	// Initialize UI
+	uiConfig := ui.Config{
+		Colors:       fileConfig.UI.Colors,
+		ProgressBars: fileConfig.UI.ProgressBars,
+		Emoji:        fileConfig.UI.Emoji,
+		Verbose:      fileConfig.UI.Verbose,
+		Theme:        fileConfig.UI.Theme,
+	}
+	termUI := ui.New(uiConfig)
+
+	termUI.Section("Starting PullPoet")
+
+	// Merge file config values with CLI flags (file config has lower priority)
+	// Git configuration from file
+	if repo == "" && fileConfig.Repo != "" {
+		repo = fileConfig.Repo
+		termUI.Verbose(fmt.Sprintf("Using repo from config file: %s", repo))
+	}
+	if source == "" && fileConfig.Source != "" {
+		source = fileConfig.Source
+		termUI.Verbose(fmt.Sprintf("Using source branch from config file: %s", source))
+	}
+	if target == "" && fileConfig.Target != "" {
+		target = fileConfig.Target
+		termUI.Verbose(fmt.Sprintf("Using target branch from config file: %s", target))
+	}
+
+	// AI Provider configuration from file
+	if provider == "" && fileConfig.Provider != "" {
+		provider = fileConfig.Provider
+		termUI.Verbose(fmt.Sprintf("Using provider from config file: %s", provider))
+	}
+	if model == "" && fileConfig.Model != "" {
+		model = fileConfig.Model
+		termUI.Verbose(fmt.Sprintf("Using model from config file: %s", model))
+	}
+	if apiKey == "" && fileConfig.APIKey != "" {
+		apiKey = fileConfig.APIKey
+		termUI.Verbose("Using API key from config file")
+	}
+	if systemPrompt == "" && fileConfig.SystemPrompt != "" {
+		systemPrompt = fileConfig.SystemPrompt
+		termUI.Verbose(fmt.Sprintf("Using system prompt from config file: %s", systemPrompt))
+	}
+	if language == "" && fileConfig.Language != "" {
+		language = fileConfig.Language
+		termUI.Verbose(fmt.Sprintf("Using language from config file: %s", language))
+	}
+
+	// Fast mode from config file (only if not set via CLI flag)
+	// Note: For bool flags, cobra sets them to false by default, so we need to check if flag was actually provided
+	if !cmd.Flags().Changed("fast") && fileConfig.FastMode {
+		fastMode = fileConfig.FastMode
+		termUI.Verbose(fmt.Sprintf("Using fast mode from config file: %v", fastMode))
+	}
+
+	// Output file from config
+	if outputFile == "" && fileConfig.Output != "" {
+		outputFile = fileConfig.Output
+		termUI.Verbose(fmt.Sprintf("Using output file from config file: %s", outputFile))
+	}
 
 	// Manual validation for required fields (including environment variables)
 	finalProvider := getProviderFromEnvOrFlag()
 	finalModel := getModelFromEnvOrFlag()
 
 	if finalProvider == "" {
-		return fmt.Errorf("provider is required (can be set via --provider flag or PULLPOET_PROVIDER environment variable)")
+		return fmt.Errorf("provider is required (can be set via --provider flag, .pullpoet.yml, or PULLPOET_PROVIDER environment variable)")
 	}
 
 	if finalModel == "" {
-		return fmt.Errorf("model is required (can be set via --model flag or PULLPOET_MODEL environment variable)")
+		return fmt.Errorf("model is required (can be set via --model flag, .pullpoet.yml, or PULLPOET_MODEL environment variable)")
 	}
 
-	// Auto-detect git information if not provided
+	// Auto-detect git information if not provided (after config file merge)
 	if repo == "" || source == "" || target == "" {
-		fmt.Println("🔍 Auto-detecting git repository information...")
+		termUI.Info("Auto-detecting git repository information...")
 		gitClient := git.NewClient()
 		gitInfo, err := gitClient.GetGitInfoFromCurrentDir()
 		if err != nil {
@@ -478,7 +554,6 @@ func run(cmd *cobra.Command, args []string) error {
 	fmt.Printf("🔄 Analyzing changes between '%s' and '%s' branches...\n", cfg.Source, cfg.Target)
 
 	var gitResult *git.GitResult
-	var err error
 
 	if fastMode {
 		fmt.Println("⚡ Using fast mode (native git commands)...")
@@ -555,43 +630,110 @@ func run(cmd *cobra.Command, args []string) error {
 }
 
 func runPreview(cmd *cobra.Command, args []string) error {
-	fmt.Println("🔍 Starting PullPoet Preview Mode...")
+	// Load configuration file
+	fileConfig, err := config.LoadConfigFile()
+	if err != nil {
+		fmt.Printf("⚠️  Warning: Failed to load config file: %v\n", err)
+		fileConfig = &config.FileConfig{UI: config.DefaultUIConfig()}
+	}
+
+	// Initialize UI
+	uiConfig := ui.Config{
+		Colors:       fileConfig.UI.Colors,
+		ProgressBars: fileConfig.UI.ProgressBars,
+		Emoji:        fileConfig.UI.Emoji,
+		Verbose:      fileConfig.UI.Verbose,
+		Theme:        fileConfig.UI.Theme,
+	}
+	termUI := ui.New(uiConfig)
+
+	termUI.Section("Starting PullPoet Preview Mode")
+
+	// Merge file config values with CLI flags (file config has lower priority)
+	// Git configuration from file
+	if repo == "" && fileConfig.Repo != "" {
+		repo = fileConfig.Repo
+		termUI.Verbose(fmt.Sprintf("Using repo from config file: %s", repo))
+	}
+	if source == "" && fileConfig.Source != "" {
+		source = fileConfig.Source
+		termUI.Verbose(fmt.Sprintf("Using source branch from config file: %s", source))
+	}
+	if target == "" && fileConfig.Target != "" {
+		target = fileConfig.Target
+		termUI.Verbose(fmt.Sprintf("Using target branch from config file: %s", target))
+	}
+
+	// AI Provider configuration from file
+	if provider == "" && fileConfig.Provider != "" {
+		provider = fileConfig.Provider
+		termUI.Verbose(fmt.Sprintf("Using provider from config file: %s", provider))
+	}
+	if model == "" && fileConfig.Model != "" {
+		model = fileConfig.Model
+		termUI.Verbose(fmt.Sprintf("Using model from config file: %s", model))
+	}
+	if apiKey == "" && fileConfig.APIKey != "" {
+		apiKey = fileConfig.APIKey
+		termUI.Verbose("Using API key from config file")
+	}
+	if systemPrompt == "" && fileConfig.SystemPrompt != "" {
+		systemPrompt = fileConfig.SystemPrompt
+		termUI.Verbose(fmt.Sprintf("Using system prompt from config file: %s", systemPrompt))
+	}
+	if language == "" && fileConfig.Language != "" {
+		language = fileConfig.Language
+		termUI.Verbose(fmt.Sprintf("Using language from config file: %s", language))
+	}
+
+	// Fast mode from config file (only if not set via CLI flag)
+	if !cmd.Flags().Changed("fast") && fileConfig.FastMode {
+		fastMode = fileConfig.FastMode
+		termUI.Verbose(fmt.Sprintf("Using fast mode from config file: %v", fastMode))
+	}
+
+	// Output file from config
+	if outputFile == "" && fileConfig.Output != "" {
+		outputFile = fileConfig.Output
+		termUI.Verbose(fmt.Sprintf("Using output file from config file: %s", outputFile))
+	}
 
 	// Manual validation for required fields (including environment variables)
 	finalProvider := getProviderFromEnvOrFlag()
 	finalModel := getModelFromEnvOrFlag()
 
 	if finalProvider == "" {
-		return fmt.Errorf("provider is required (can be set via --provider flag or PULLPOET_PROVIDER environment variable)")
+		return fmt.Errorf("provider is required (can be set via --provider flag, .pullpoet.yml, or PULLPOET_PROVIDER environment variable)")
 	}
 
 	if finalModel == "" {
-		return fmt.Errorf("model is required (can be set via --model flag or PULLPOET_MODEL environment variable)")
+		return fmt.Errorf("model is required (can be set via --model flag, .pullpoet.yml, or PULLPOET_MODEL environment variable)")
 	}
 
-	// Auto-detect git information if not provided
+	// Auto-detect git information if not provided (after config file merge)
 	if repo == "" || source == "" || target == "" {
-		fmt.Println("🔍 Auto-detecting git repository information...")
+		termUI.Info("Auto-detecting git repository information...")
 		gitClient := git.NewClient()
 		gitInfo, err := gitClient.GetGitInfoFromCurrentDir()
 		if err != nil {
 			return fmt.Errorf("auto-detection failed: %w", err)
 		}
 		if !gitInfo.IsGitRepo {
-			return fmt.Errorf("not in a git repository - please provide --repo, --source and --target flags")
+			return fmt.Errorf("not in a git repository - please provide --repo, --source and --target flags or set them in .pullpoet.yml")
 		}
 		if repo == "" {
 			repo = gitInfo.RepoURL
-			fmt.Printf("✅ Auto-detected repository: %s\n", repo)
+			termUI.Step(fmt.Sprintf("Repository: %s", repo))
 		}
 		if source == "" {
 			source = gitInfo.CurrentBranch
-			fmt.Printf("✅ Auto-detected source branch: %s\n", source)
+			termUI.Step(fmt.Sprintf("Source branch: %s", source))
 		}
 		if target == "" {
 			target = gitInfo.DefaultBranch
-			fmt.Printf("✅ Auto-detected target branch (default branch): %s\n", target)
+			termUI.Step(fmt.Sprintf("Target branch: %s", target))
 		}
+		termUI.Success("Git repository information detected")
 	}
 
 	// Validate configuration
@@ -723,6 +865,35 @@ func runPreview(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println("💡 You can review these changes before committing.")
+
+	return nil
+}
+
+func runInitConfig(cmd *cobra.Command, args []string) error {
+	configPath := ".pullpoet.yml"
+
+	// Check if config file already exists
+	if _, err := os.Stat(configPath); err == nil {
+		fmt.Printf("⚠️  Config file %s already exists. Overwrite? (y/N): ", configPath)
+		var response string
+		fmt.Scanln(&response)
+		if strings.ToLower(response) != "y" {
+			fmt.Println("❌ Aborted")
+			return nil
+		}
+	}
+
+	// Generate example config
+	exampleConfig := config.GenerateExampleConfig()
+
+	// Write to file
+	if err := os.WriteFile(configPath, []byte(exampleConfig), 0644); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	fmt.Println("✅ Created example configuration file: .pullpoet.yml")
+	fmt.Println("📝 Edit this file to set your default values")
+	fmt.Println("💡 Tip: Use environment variables (e.g., ${PULLPOET_API_KEY}) for sensitive data")
 
 	return nil
 }

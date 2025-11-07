@@ -28,6 +28,8 @@ A Go CLI tool that generates AI-powered pull request titles and descriptions by 
 - **📌 ClickUp Integration**: Automatically fetch task descriptions and comments from ClickUp
 - **🎯 Jira Integration**: Automatically fetch issue descriptions and comments from Jira
 - **📝 Multi-Task Support**: Process multiple ClickUp tasks or Jira issues in a single PR (comma-separated)
+- **⚙️ Configuration File**: Use `.pullpoet.yml` for project-specific defaults
+- **🎨 Rich Terminal UI**: Beautiful colored output, progress bars, and spinners
 
 ## Installation
 
@@ -1084,6 +1086,191 @@ The fetched information is formatted and used as the description input for AI an
 - **Basic Auth**: Uses HTTP Basic Authentication with username and API token
 - **HTTPS Only**: Always use HTTPS URLs for your Jira base URL
 - **Token Scope**: API tokens have the same permissions as your Jira user account
+
+## Configuration File Support
+
+PullPoet supports project-specific configuration via `.pullpoet.yml` file. This eliminates the need to repeatedly specify the same flags.
+
+### Creating a Configuration File
+
+Generate an example configuration file in your project:
+
+```bash
+pullpoet init-config
+```
+
+This creates a `.pullpoet.yml` file with all available options and helpful comments.
+
+### Configuration Priority
+
+Settings are applied in this order (highest to lowest priority):
+
+1. **CLI flags** - Explicitly provided command-line arguments
+2. **`.pullpoet.yml`** - Project-specific configuration file
+3. **Environment variables** - System environment variables
+4. **Default values** - Built-in defaults
+
+### Example Configuration
+
+```yaml
+# .pullpoet.yml
+
+# Git Configuration (optional - auto-detected if not specified)
+# repo: https://github.com/your-username/your-repo.git
+# source: feature/branch-name  # Auto-detected from current branch
+target: main  # Set your default target branch (e.g., main, develop, master)
+
+# AI Provider Configuration
+provider: openai
+model: gpt-4
+api_key: ${PULLPOET_API_KEY}  # Use environment variable
+
+# General Settings
+language: en
+fast_mode: true  # Recommended for faster performance with large repos
+output: pr-description.md
+
+# ClickUp Integration
+clickup:
+  pat: ${PULLPOET_CLICKUP_PAT}
+
+# Jira Integration
+jira:
+  base_url: ${PULLPOET_JIRA_BASE_URL}
+  username: ${PULLPOET_JIRA_USERNAME}
+  api_token: ${PULLPOET_JIRA_API_TOKEN}
+
+# UI Configuration
+ui:
+  colors: true
+  progress_bars: true
+  emoji: true
+  verbose: false
+  theme: auto  # auto, light, dark
+```
+
+### Git Configuration
+
+You can set default git values in your config file:
+
+```yaml
+# Set default target branch (very useful!)
+target: main  # or develop, master, etc.
+
+# Or specify repo and source if working with remote repos
+repo: https://github.com/your-username/your-repo.git
+source: feature/my-feature
+```
+
+**Common use case:** Setting `target: main` so you don't need to specify `--target main` every time:
+
+```bash
+# Without config file
+pullpoet --target main --jira-task-id HIP-1234
+
+# With target: main in .pullpoet.yml
+pullpoet --jira-task-id HIP-1234  # Much cleaner!
+```
+
+### Environment Variables in Config
+
+You can use environment variables in your config file:
+
+```yaml
+api_key: ${PULLPOET_API_KEY}
+jira:
+  base_url: ${JIRA_URL}
+  api_token: ${JIRA_TOKEN}
+```
+
+### Config File Location
+
+PullPoet searches for `.pullpoet.yml` (or `.pullpoet.yaml`) in:
+1. Current directory
+2. Parent directories up to your home directory
+
+This allows you to place the config at your project root and use it from any subdirectory.
+
+### Usage with Config File
+
+Once you have a `.pullpoet.yml`, you can run with minimal flags:
+
+```bash
+# Everything configured in .pullpoet.yml
+pullpoet
+
+# Override specific values
+pullpoet --model gpt-3.5-turbo --jira-task-id HIP-1234
+```
+
+### UI Configuration
+
+Control the terminal UI appearance:
+
+```yaml
+ui:
+  colors: true          # Enable colored output
+  progress_bars: true   # Show progress bars for operations
+  emoji: true          # Use emoji in output messages
+  verbose: false       # Show detailed debug logs
+  theme: auto          # auto, light, or dark
+```
+
+**Theme Options:**
+- `auto`: Automatically detect terminal capabilities
+- `light`: Optimized for light backgrounds
+- `dark`: Optimized for dark backgrounds
+
+**Disable Colors:**
+- Set `colors: false` in config
+- Or use `NO_COLOR` environment variable
+
+### All Available Configuration Options
+
+Here's a complete reference of all configuration options:
+
+```yaml
+# Git Configuration
+repo: https://github.com/user/repo.git  # Git repository URL
+source: feature/my-feature              # Source branch
+target: main                            # Target branch
+
+# AI Provider Configuration
+provider: openai                        # openai, ollama, gemini, openwebui
+model: gpt-4                           # AI model name
+api_key: ${PULLPOET_API_KEY}           # API key (use env var)
+provider_base_url: http://localhost:11434  # Provider base URL (for Ollama/OpenWebUI)
+
+# General Settings
+language: en                            # Output language (en, tr, es, etc.)
+fast_mode: true                         # Use fast native git (recommended)
+output: pr-description.md               # Save output to file
+system_prompt: /path/to/prompt.md      # Custom system prompt file
+
+# ClickUp Integration
+clickup:
+  pat: ${PULLPOET_CLICKUP_PAT}         # ClickUp Personal Access Token
+
+# Jira Integration
+jira:
+  base_url: https://company.atlassian.net  # Jira base URL
+  username: user@company.com           # Jira username/email
+  api_token: ${JIRA_TOKEN}             # Jira API token
+
+# UI Configuration
+ui:
+  colors: true                          # Enable colored output
+  progress_bars: true                   # Show progress bars
+  emoji: true                          # Use emoji in messages
+  verbose: false                       # Show debug logs
+  theme: auto                          # auto, light, or dark
+```
+
+**Notes:**
+- All fields are optional and have sensible defaults
+- Use environment variables for sensitive data (API keys, tokens)
+- CLI flags override config file values
+- Config file values override environment variables
 
 ## Performance Optimization
 

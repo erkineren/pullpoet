@@ -1,0 +1,39 @@
+# PullPoet Configuration File Example
+# Copy this to .pullpoet.yml and customize for your project
+# Priority: CLI flags > .pullpoet.yml > Environment variables > Defaults
+
+# Git Configuration (optional - auto-detected if not specified)
+# repo: https://github.com/your-username/your-repo.git  # Git repository URL
+# source: feature/branch-name  # Source branch (default: current branch)
+# target: main  # Target branch (default: repository's default branch)
+
+# AI Provider Configuration
+provider: openai  # openai, ollama, gemini, openwebui
+model: gpt-4     # AI model to use
+api_key: ${PULLPOET_API_KEY}  # Use environment variable for security
+# provider_base_url: http://localhost:11434  # For Ollama/OpenWebUI
+
+# General Settings
+language: en  # Language for generated content (en, tr, es, fr, de, etc.)
+fast_mode: true  # Use fast native git commands for large repos (recommended)
+# output: pr-description.md  # Save output to file
+# system_prompt: /path/to/custom-prompt.md  # Custom system prompt
+
+# ClickUp Integration
+clickup:
+  pat: ${PULLPOET_CLICKUP_PAT}  # ClickUp Personal Access Token
+
+# Jira Integration
+jira:
+  base_url: ${PULLPOET_JIRA_BASE_URL}  # e.g., https://company.atlassian.net
+  username: ${PULLPOET_JIRA_USERNAME}  # Your Jira email
+  api_token: ${PULLPOET_JIRA_API_TOKEN}  # Jira API token
+
+# UI Configuration
+ui:
+  colors: true  # Enable colored output
+  progress_bars: true  # Show progress bars
+  emoji: true  # Use emoji in output
+  verbose: false  # Show detailed logs
+  theme: auto  # auto, light, dark
+
